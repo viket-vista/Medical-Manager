@@ -208,7 +208,7 @@ class _EditPageState extends State<EditPage> {
         SizedBox(height: 8),
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(10),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
@@ -240,7 +240,7 @@ class _EditPageState extends State<EditPage> {
                 Divider(),
                 SizedBox(height: 4),
                 Padding(
-                  padding: EdgeInsets.all(16),
+                  padding: EdgeInsets.all(6),
                   child: buildExpandTextEdit(dabian, '大便', (value) {
                     MedicalRecord = JsonChange(
                       ["现病史", '一般情况', '大便'],
@@ -250,7 +250,7 @@ class _EditPageState extends State<EditPage> {
                   }),
                 ),
                 Padding(
-                  padding: EdgeInsets.all(16),
+                  padding: EdgeInsets.all(6),
                   child: buildExpandTextEdit(xiaobian, '小便', (value) {
                     MedicalRecord = JsonChange(
                       ["现病史", '一般情况', '小便'],
@@ -260,7 +260,7 @@ class _EditPageState extends State<EditPage> {
                   }),
                 ),
                 Padding(
-                  padding: EdgeInsets.all(16),
+                  padding: EdgeInsets.all(6),
                   child: buildExpandTextEdit(shuimian, '精神', (value) {
                     MedicalRecord = JsonChange(
                       ["现病史", '一般情况', '精神'],
@@ -270,7 +270,7 @@ class _EditPageState extends State<EditPage> {
                   }),
                 ),
                 Padding(
-                  padding: EdgeInsets.all(16),
+                  padding: EdgeInsets.all(6),
                   child: buildExpandTextEdit(tizhong, '体重', (value) {
                     MedicalRecord = JsonChange(
                       ["现病史", '一般情况', '体重'],
@@ -339,7 +339,7 @@ class _EditPageState extends State<EditPage> {
           children: [
             for (int j = 0; j <= 7; j++)
               Padding(
-                padding: EdgeInsets.all(20),
+                padding: EdgeInsets.all(16),
                 child: TextField(
                   controller: zz[j],
                   decoration: InputDecoration(labelText: menu[j]),
@@ -404,7 +404,7 @@ class _EditPageState extends State<EditPage> {
           children: [
             for (int j = 0; j <= 7; j++)
               Padding(
-                padding: EdgeInsets.all(20),
+                padding: EdgeInsets.all(16),
                 child: TextField(
                   controller: zz[j],
                   decoration: InputDecoration(labelText: menu[j]),
@@ -487,7 +487,7 @@ class _EditPageState extends State<EditPage> {
                 children: [
                   for (int k = 0; k < entry.value[j].length; k++)
                     Padding(
-                      padding: EdgeInsets.all(20),
+                      padding: EdgeInsets.all(6),
                       child: TextField(
                         controller: any[k],
                         decoration: InputDecoration(
@@ -571,7 +571,7 @@ class _EditPageState extends State<EditPage> {
         var text = TextEditingController();
         temp1.add(
           Padding(
-            padding: EdgeInsets.all(10),
+            padding: EdgeInsets.all(6),
             child: TextField(
               controller: text,
               decoration: InputDecoration(labelText: entry.key),
@@ -596,7 +596,7 @@ class _EditPageState extends State<EditPage> {
           SizedBox(height: 8),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(6),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [...temp1, Divider()],
@@ -658,6 +658,7 @@ class _EditPageState extends State<EditPage> {
         text['成瘾物'] = [TextEditingController(text: gerenshi1['成瘾物']['种类'])];
       }
     }
+    gerenshi.add(Text('个人史'));
     gerenshi.add(
       Card(
         child: Padding(
@@ -690,7 +691,7 @@ class _EditPageState extends State<EditPage> {
                     children: [
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(6),
                           child: TextField(
                             controller: text['吸烟'][0],
                             decoration: InputDecoration(labelText: '吸烟时长'),
@@ -734,7 +735,7 @@ class _EditPageState extends State<EditPage> {
                       if (text['吸烟'][2])
                         Expanded(
                           child: Padding(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(6),
                             child: TextField(
                               controller: text['吸烟'][3],
                               decoration: InputDecoration(labelText: '戒除时间'),
@@ -770,8 +771,7 @@ class _EditPageState extends State<EditPage> {
               ),
               if (_switch[1])
                 Container(
-                  margin: EdgeInsets.only(top: 20),
-                  padding: EdgeInsets.all(16),
+                  padding: EdgeInsets.all(6),
                   child: Row(
                     children: [
                       Expanded(
@@ -816,7 +816,7 @@ class _EditPageState extends State<EditPage> {
                   if (_switch[2])
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(6),
                         child: TextField(
                           controller: text['成瘾物'][0],
                           decoration: InputDecoration(labelText: '种类'),
@@ -845,7 +845,7 @@ class _EditPageState extends State<EditPage> {
                 ],
               ),
               Padding(
-                padding: const EdgeInsets.only(top: 16, bottom: 16),
+                padding: const EdgeInsets.only(top: 6, bottom: 6),
                 child: TextField(
                   controller: TextEditingController(
                     text: MedicalRecord['个人史']['生活史'],
@@ -861,7 +861,7 @@ class _EditPageState extends State<EditPage> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.only(top: 16, bottom: 16),
+                padding: const EdgeInsets.only(top: 6, bottom: 6),
                 child: TextField(
                   controller: TextEditingController(
                     text: MedicalRecord['个人史']['职业'],
@@ -877,7 +877,7 @@ class _EditPageState extends State<EditPage> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.only(top: 16, bottom: 16),
+                padding: const EdgeInsets.only(top: 6, bottom: 6),
                 child: TextField(
                   controller: TextEditingController(
                     text: MedicalRecord['个人史']['其他'],
@@ -940,19 +940,19 @@ class _EditPageState extends State<EditPage> {
         return DropdownMenuItem<String>(value: value, child: Text(value));
       }).toList(),
     );
+    hunyushi.add(Text('婚育史'));
     hunyushi.add(
       Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(6),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('婚育史'),
               Row(children: [Text('结婚'), Spacer(), hy]),
               if (MedicalRecord['婚育史']['结婚']['statue'] != '未婚' &&
                   MedicalRecord['婚育史']['结婚']['statue'] != '')
                 Container(
-                  margin: EdgeInsets.only(top: 20),
+                  margin: EdgeInsets.only(top: 6),
                   child: Row(
                     children: [
                       Expanded(
@@ -1119,14 +1119,14 @@ class _EditPageState extends State<EditPage> {
   }
 
   void buildjiazushi() {
-    hunyushi.add(
+    jiwangshi.add(Text('家族史'));
+    jiazushi.add(
       Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('家族史'),
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: TextField(
@@ -1331,7 +1331,7 @@ class _EditPageState extends State<EditPage> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
+        padding: EdgeInsets.all(6),
         child: Column(
           children: [
             buildBasicInfo(),
