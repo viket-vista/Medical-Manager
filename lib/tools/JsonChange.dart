@@ -63,12 +63,12 @@ dynamic JsonDel(List<dynamic> path,dynamic inputjson){
     if (inputjson is List&&path[0] is int&&inputjson.length>path[0]){
       final first=path[0];
       path.removeAt(0);
-      inputjson[first]=JsonDel(path, inputjson);
+      inputjson[first]=JsonDel(path, inputjson[first]);
       return inputjson;
     }else if(inputjson is Map){
       final first=path[0];
       path.removeAt(0);
-      inputjson[first]=JsonDel(path, inputjson);
+      inputjson[first]=JsonDel(path, inputjson[first]);
       return inputjson;
     }
   }

@@ -51,6 +51,7 @@ class _EditPageState extends State<EditPage> {
   late List<Widget> hunyushi;
   late List<Widget> jiazushi;
   late List<Widget> fucha;
+  late bool zzremovemode, fcremovemode;
   @override
   void initState() {
     super.initState();
@@ -64,6 +65,7 @@ class _EditPageState extends State<EditPage> {
     name.text = MedicalRecord['name'];
     age.text = MedicalRecord['age'];
     zhusu.text = MedicalRecord['主诉'];
+    zzremovemode = false;
     buildZhengzhuang();
     jiwangshi = [];
     buildjiwangshi();
@@ -74,8 +76,27 @@ class _EditPageState extends State<EditPage> {
     buildhunyushi();
     jiazushi = [];
     buildjiazushi();
+    fcremovemode = false;
     fucha = [];
     buildfucha();
+  }
+
+  @override
+  void dispose() {
+    name.dispose();
+    age.dispose();
+    zhusu.dispose();
+    dabian.dispose();
+    xiaobian.dispose();
+    tizhong.dispose();
+    shuimian.dispose();
+    for (var controllers in array.entries) {
+      controllers.key.dispose();
+    }
+    for (var controllers in array1.entries) {
+      controllers.key.dispose();
+    }
+    super.dispose();
   }
 
   void saveData() async {
@@ -174,11 +195,10 @@ class _EditPageState extends State<EditPage> {
   }
 
   Widget buildXianbingshi() {
-    dynamic Xianbingshi = MedicalRecord['现病史'];
-    dabian.text = Xianbingshi['一般情况']['大便'];
-    xiaobian.text = Xianbingshi['一般情况']['小便'];
-    shuimian.text = Xianbingshi['一般情况']['精神'];
-    tizhong.text = Xianbingshi['一般情况']['体重'];
+    dabian.text = MedicalRecord['现病史']['一般情况']['大便'];
+    xiaobian.text = MedicalRecord['现病史']['一般情况']['小便'];
+    shuimian.text = MedicalRecord['现病史']['一般情况']['精神'];
+    tizhong.text = MedicalRecord['现病史']['一般情况']['体重'];
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
@@ -202,6 +222,16 @@ class _EditPageState extends State<EditPage> {
                           addzz();
                         },
                         icon: Icon(Icons.add),
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            zzremovemode = !zzremovemode;
+                            Zhengzhuang.clear();
+                            buildZhengzhuang();
+                          });
+                        },
+                        icon: Icon(Icons.remove),
                       ),
                     ],
                   ),
@@ -285,7 +315,27 @@ class _EditPageState extends State<EditPage> {
       }
       Zhengzhuang.add(
         ExpansionTile(
-          title: Text('症状${number + 1}'),
+          title: Row(
+            children: [
+              Text('症状'),
+              Spacer(),
+              if (zzremovemode)
+                IconButton(
+                  onPressed: () {
+                    MedicalRecord = JsonDel([
+                      '现病史',
+                      '症状',
+                      number,
+                    ], MedicalRecord);
+                    setState(() {
+                      Zhengzhuang.clear();
+                      buildZhengzhuang();
+                    });
+                  },
+                  icon: Icon(Icons.remove),
+                ),
+            ],
+          ),
           children: [
             for (int j = 0; j <= 7; j++)
               Padding(
@@ -334,7 +384,23 @@ class _EditPageState extends State<EditPage> {
       array[zz[7]] = ['现病史', '症状', i, '其他'];
       Zhengzhuang.add(
         ExpansionTile(
-          title: Text('症状${i + 1}'),
+          title: Row(
+            children: [
+              Text('症状'),
+              Spacer(),
+              if (zzremovemode)
+                IconButton(
+                  onPressed: () {
+                    MedicalRecord = JsonDel(['现病史', '症状', i], MedicalRecord);
+                    setState(() {
+                      Zhengzhuang.clear();
+                      buildZhengzhuang();
+                    });
+                  },
+                  icon: Icon(Icons.remove),
+                ),
+            ],
+          ),
           children: [
             for (int j = 0; j <= 7; j++)
               Padding(
@@ -402,8 +468,21 @@ class _EditPageState extends State<EditPage> {
             }
             temp.add(
               ExpansionTile(
-                title: Text(
-                  MedicalRecord['既往史'][entry.key][j].values.toList()[0],
+                title: Row(
+                  children: [
+                    Text(MedicalRecord['既往史'][entry.key][j].values.toList()[0]),
+                    Spacer(),
+                    IconButton(
+                      onPressed: () {
+                        MedicalRecord['既往史'][entry.key].removeAt(j);
+                        setState(() {
+                          jiwangshi.clear();
+                          buildjiwangshi();
+                        });
+                      },
+                      icon: Icon(Icons.remove),
+                    ),
+                  ],
                 ),
                 children: [
                   for (int k = 0; k < entry.value[j].length; k++)
@@ -439,18 +518,34 @@ class _EditPageState extends State<EditPage> {
             TextEditingController text = TextEditingController();
             text.text = entry.value[k];
             temp.add(
-              Padding(
-                padding: EdgeInsets.all(20),
-                child: TextField(
-                  controller: text,
-                  onChanged: (value) {
-                    MedicalRecord = JsonChange(
-                      ['既往史', entry.key, k],
-                      MedicalRecord,
-                      value,
-                    );
-                  },
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: TextField(
+                        controller: text,
+                        onChanged: (value) {
+                          MedicalRecord = JsonChange(
+                            ['既往史', entry.key, k],
+                            MedicalRecord,
+                            value,
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      MedicalRecord['既往史'][entry.key].removeAt(k);
+                      setState(() {
+                        jiwangshi.clear();
+                        buildjiwangshi();
+                      });
+                    },
+                    icon: Icon(Icons.remove),
+                  ),
+                ],
               ),
             );
           }
@@ -1089,7 +1184,7 @@ class _EditPageState extends State<EditPage> {
 
   void addfc() {
     setState(() {
-      int number = fucha.length-1;
+      int number = fucha.length - 1;
       List<TextEditingController> zz = List.generate(
         4,
         (_) => TextEditingController(),
@@ -1102,7 +1197,23 @@ class _EditPageState extends State<EditPage> {
       }
       fucha.add(
         ExpansionTile(
-          title: Text('辅查${number + 1}'),
+          title: Row(
+            children: [
+              Text('辅查'),
+              Spacer(),
+              if (fcremovemode)
+                IconButton(
+                  onPressed: () {
+                    MedicalRecord = JsonDel(['外院辅助检查', number], MedicalRecord);
+                    setState(() {
+                      fucha.clear();
+                      buildfucha();
+                    });
+                  },
+                  icon: Icon(Icons.remove),
+                ),
+            ],
+          ),
           children: [
             for (int j = 0; j <= 3; j++)
               Padding(
@@ -1137,6 +1248,16 @@ class _EditPageState extends State<EditPage> {
             },
             icon: Icon(Icons.add),
           ),
+          IconButton(
+            onPressed: () {
+              fcremovemode = !fcremovemode;
+              setState(() {
+                fucha.clear();
+                buildfucha();
+              });
+            },
+            icon: Icon(Icons.remove),
+          ),
         ],
       ),
     );
@@ -1152,7 +1273,23 @@ class _EditPageState extends State<EditPage> {
       }
       fucha.add(
         ExpansionTile(
-          title: Text('辅查${i + 1}'),
+          title: Row(
+            children: [
+              Text('辅查'),
+              Spacer(),
+              if (fcremovemode)
+                IconButton(
+                  onPressed: () {
+                    MedicalRecord = JsonDel(['外院辅助检查', i], MedicalRecord);
+                    setState(() {
+                      fucha.clear();
+                      buildfucha();
+                    });
+                  },
+                  icon: Icon(Icons.remove),
+                ),
+            ],
+          ),
           children: [
             for (int j = 0; j <= 3; j++)
               Padding(
