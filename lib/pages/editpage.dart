@@ -1119,7 +1119,7 @@ class _EditPageState extends State<EditPage> {
   }
 
   void buildjiazushi() {
-    jiwangshi.add(Text('家族史'));
+    jiazushi.add(Text('家族史'));
     jiazushi.add(
       Card(
         child: Padding(
