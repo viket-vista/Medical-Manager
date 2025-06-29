@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:medicalmanager/models/settings_model.dart';
 import 'package:medicalmanager/tools/JsonParse.dart';
-// 病历页面
 import 'dart:convert';
 
 import 'package:medicalmanager/pages/editpage.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:medicalmanager/pages/record.dart';
 
 class MedicalRecordPage extends StatefulWidget {
   const MedicalRecordPage({super.key});
@@ -19,10 +21,12 @@ class MedicalRecordPage extends StatefulWidget {
 
 class PageState extends State<MedicalRecordPage> {
   List<Map<String, dynamic>> allMHEntry = [];
+  late bool deletemode;
   @override
   void initState() {
     super.initState();
     loaddata();
+    deletemode = false;
   }
 
   Future<void> loaddata() async {
@@ -63,8 +67,9 @@ class PageState extends State<MedicalRecordPage> {
   }
 
   Future<File> get _localFile async {
-    final directory = await getApplicationDocumentsDirectory();
-    return File('${directory.path}/All_MH_Entry.json');
+    final settings = Provider.of<SettingsModel>(context, listen: false);
+    final directory = settings.docPath;
+    return File('$directory/All_MH_Entry.json');
   }
 
   Future<void> writeData(List<Map<String, dynamic>> newData) async {
@@ -87,8 +92,9 @@ class PageState extends State<MedicalRecordPage> {
   }
 
   Future<void> deleteItem(int index) async {
-    final directory = await getApplicationDocumentsDirectory();
-    File("${directory.path}/data/${allMHEntry[index]["uuid"]}.json").delete();
+    final settings = Provider.of<SettingsModel>(context, listen: false);
+    final directory = settings.docPath;
+    File("$directory/data/${allMHEntry[index]["uuid"]}.json").delete();
     setState(() {
       allMHEntry.removeAt(index);
     });
@@ -105,22 +111,34 @@ class PageState extends State<MedicalRecordPage> {
             future: loaddata1(),
             builder: (context, snapshot) {
               if (snapshot.hasData) {
-                return IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => EditPage(
-                          medicalRecord1: snapshot.data!,
-                          onSave: (newitem) {
-                            addData(newitem);
-                          },
-                          onDelete: () {},
-                        ),
-                      ),
-                    );
-                  },
-                  icon: Icon(Icons.add),
+                return Row(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EditPage(
+                              medicalRecord1: snapshot.data!,
+                              onSave: (newitem) {
+                                addData(newitem);
+                              },
+                              onDelete: () {},
+                            ),
+                          ),
+                        );
+                      },
+                      icon: Icon(Icons.add),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        setState(() {
+                          deletemode = !deletemode;
+                        });
+                      },
+                      icon: Icon(Icons.delete),
+                    ),
+                  ],
                 );
               } else {
                 return Icon(Icons.info);
@@ -142,55 +160,35 @@ class PageState extends State<MedicalRecordPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EditPage(
-                      medicalRecord1: mr,
-                      item: item,
-                      onSave: (updatedItem) {
-                        updatedata(index, updatedItem);
-                      },
-                      onDelete: () {
-                        deleteItem(index);
-                      },
-                    ),
+                    builder: (context) => RecordPage(uuid: item['uuid']),
                   ),
                 );
               },
               child: Card(
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "姓名:${item['name']}",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Text(
+                          "姓名:${item['name']} 年龄:${item['age']} 创建时间:${DateTime.fromMillisecondsSinceEpoch(item['created_at'])}",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
-                          SizedBox(width: 4),
-                          Text(
-                            "年龄:${item['age']}",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            "创建时间:${DateTime.fromMillisecondsSinceEpoch(item['created_at'])}",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(width: 4),
-                        ],
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       ),
                     ),
-                    Spacer(),
+                    if (deletemode)
+                      IconButton(
+                        onPressed: () {
+                          deleteItem(index);
+                        },
+                        icon: Icon(Icons.delete_rounded),
+                      ),
                     IconButton(
                       onPressed: () async {
                         Map<String, dynamic> mr = await loaddata1(item['uuid']);

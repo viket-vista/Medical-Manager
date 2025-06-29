@@ -12,6 +12,8 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:crypto/crypto.dart';
+import 'package:provider/provider.dart';
+import 'package:medicalmanager/models/settings_model.dart';
 
 class EditPage extends StatefulWidget {
   final Map<String, dynamic>? item;
@@ -100,8 +102,9 @@ class _EditPageState extends State<EditPage> {
   }
 
   void saveData() async {
-    final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/data/$uuid.json');
+    final settings = Provider.of<SettingsModel>(context,listen: false);
+    final directory = settings.docPath;
+    final file = File('$directory/data/$uuid.json');
     final jsonStr = jsonEncode(MedicalRecord);
     Map<String, dynamic> returnjson = {};
     returnjson["name"] = MedicalRecord["name"];
@@ -109,6 +112,8 @@ class _EditPageState extends State<EditPage> {
     returnjson["created_at"] = MedicalRecord["created_at"];
     returnjson["last_edit_at"] = DateTime.now().millisecondsSinceEpoch;
     returnjson["uuid"] = uuid;
+    if (!await file.parent.exists()){file.parent.create(recursive: true);}
+    if (!await file.exists()){file.create();}
     await file.writeAsString(jsonStr);
     widget.onSave(returnjson);
     Navigator.pop(context);
@@ -1325,7 +1330,8 @@ class _EditPageState extends State<EditPage> {
             IconButton(
               icon: Icon(Icons.delete),
               onPressed: () {
-                widget.onDelete;
+                widget.onDelete();
+                Navigator.pop(context);
               },
             ),
         ],
