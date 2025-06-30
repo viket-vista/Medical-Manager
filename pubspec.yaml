@@ -41,6 +41,8 @@ dependencies:
   shared_preferences: ^2.5.3
   permission_handler: ^12.0.0+1
   saf_util: ^0.10.0
+  flutter_sound: ^9.28.0
+  ffmpeg_kit_flutter_new: ^2.0.0
 
 dev_dependencies:
   flutter_test:
