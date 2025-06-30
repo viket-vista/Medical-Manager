@@ -14,6 +14,8 @@ import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:crypto/crypto.dart';
 import 'package:provider/provider.dart';
 import 'package:medicalmanager/models/settings_model.dart';
+import 'package:flutter_sound/flutter_sound.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class EditPage extends StatefulWidget {
   final Map<String, dynamic>? item;
@@ -54,6 +56,16 @@ class _EditPageState extends State<EditPage> {
   late List<Widget> jiazushi;
   late List<Widget> fucha;
   late bool zzremovemode, fcremovemode;
+  final FlutterSoundRecorder _audioRecorder = FlutterSoundRecorder();
+  final FlutterSoundPlayer _audioPlayer = FlutterSoundPlayer();
+  late bool isRecording;
+  String? currentRecordingPath;
+  late List<FileSystemEntity> audioFiles;
+  late int playingIndex;
+  late bool isPlaying;
+  late Duration currentPosition;
+  late Duration totalDuration;
+
   @override
   void initState() {
     super.initState();
@@ -81,6 +93,14 @@ class _EditPageState extends State<EditPage> {
     fcremovemode = false;
     fucha = [];
     buildfucha();
+    isRecording = false;
+    _audioRecorder.openRecorder(isBGService: true);
+    audioFiles = [];
+    _audioPlayer.openPlayer();
+    playingIndex = -1;
+    isPlaying = false;
+    currentPosition = Duration.zero;
+    totalDuration = Duration.zero;
   }
 
   @override
@@ -102,7 +122,7 @@ class _EditPageState extends State<EditPage> {
   }
 
   void saveData() async {
-    final settings = Provider.of<SettingsModel>(context,listen: false);
+    final settings = Provider.of<SettingsModel>(context, listen: false);
     final directory = settings.docPath;
     final file = File('$directory/data/$uuid.json');
     final jsonStr = jsonEncode(MedicalRecord);
@@ -112,8 +132,12 @@ class _EditPageState extends State<EditPage> {
     returnjson["created_at"] = MedicalRecord["created_at"];
     returnjson["last_edit_at"] = DateTime.now().millisecondsSinceEpoch;
     returnjson["uuid"] = uuid;
-    if (!await file.parent.exists()){file.parent.create(recursive: true);}
-    if (!await file.exists()){file.create();}
+    if (!await file.parent.exists()) {
+      file.parent.create(recursive: true);
+    }
+    if (!await file.exists()) {
+      file.create();
+    }
     await file.writeAsString(jsonStr);
     widget.onSave(returnjson);
     Navigator.pop(context);
@@ -1315,10 +1339,123 @@ class _EditPageState extends State<EditPage> {
         ),
       );
     }
+    fucha = [
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: fucha,
+          ),
+        ),
+      ),
+    ];
+  }
+
+  Future<void> play(FileSystemEntity file, int index) async {
+    await _audioPlayer.setSubscriptionDuration(Duration(milliseconds: 100));
+    await _audioPlayer.startPlayer(
+      fromURI: file.path,
+      codec: Codec.aacADTS,
+      whenFinished: () {
+        setState(() {
+          isPlaying = false;
+          playingIndex = -1;
+          currentPosition = Duration.zero;
+        });
+      },
+    );
+    _audioPlayer.onProgress!.listen((duration) {
+      totalDuration = duration.duration;
+      setState(() {
+        currentPosition = duration.position;
+      });
+    });
+    setState(() {
+      isPlaying = true;
+      playingIndex = index;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    // 录音相关变量
+    final String recordDir =
+        '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/';
+    final player = ValueNotifier<dynamic>(null);
+
+    // 获取所有录音文件
+    Future<void> loadAudioFiles() async {
+      final dir = Directory(recordDir);
+      if (isRecording) {
+        return;
+      }
+      if (await dir.exists()) {
+        final files =
+            dir.listSync().where((f) => f.path.endsWith('.aac')).toList()
+              ..sort((a, b) => a.path.compareTo(b.path));
+        setState(() {
+          audioFiles = files;
+        });
+      } else {
+        await dir.create(recursive: true);
+      }
+    }
+
+    Future<void> openTheRecorder(String tofile) async {
+      await Permission.microphone.request();
+      if (!File(tofile).parent.existsSync()) {
+        await File(tofile).parent.create(recursive: true);
+      }
+      await _audioRecorder.startRecorder(toFile: tofile);
+    }
+
+    // 录音按钮点击
+    Future<void> onRecordPressed() async {
+      if (!isRecording) {
+        // 开始录音
+        int idx = 1;
+        while (File('$recordDir$idx.aac').existsSync()) {
+          idx++;
+        }
+        currentRecordingPath = '$recordDir$idx.aac';
+        await openTheRecorder(currentRecordingPath!);
+        setState(() {
+          isRecording = true;
+        });
+      } else {
+        var a = await _audioRecorder.stopRecorder();
+        // 停止录音
+        if (a == null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('录音失败')));
+        }
+        setState(() {
+          isRecording = false;
+          currentRecordingPath = null;
+        });
+        await loadAudioFiles();
+      }
+    }
+
+    // 删除录音
+    Future<void> deleteAudio(int index) async {
+      await player.value?.stopPlayer();
+      await File(audioFiles[index].path).delete();
+      setState(() {
+        isPlaying = false;
+        playingIndex = -1;
+        currentPosition = Duration.zero;
+      });
+      await loadAudioFiles();
+    }
+
+    // 页面初始化时加载录音
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      loadAudioFiles();
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -1340,6 +1477,19 @@ class _EditPageState extends State<EditPage> {
         padding: EdgeInsets.all(6),
         child: Column(
           children: [
+            // 顶部录音按钮
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  icon: Icon(isRecording ? Icons.stop : Icons.mic),
+                  label: Text(isRecording ? '录音中...' : '录音'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isRecording ? Colors.red : null,
+                  ),
+                  onPressed: onRecordPressed,
+                ),
+              ],
+            ),
             buildBasicInfo(),
             buildZhusu(),
             buildXianbingshi(),
@@ -1348,6 +1498,101 @@ class _EditPageState extends State<EditPage> {
             ...hunyushi,
             ...jiazushi,
             ...fucha,
+            // 录音文件列表
+            if (audioFiles.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('录音列表', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ...List.generate(audioFiles.length, (index) {
+                      final file = audioFiles[index];
+                      final fileName = file.path
+                          .split(Platform.pathSeparator)
+                          .last;
+                      final isThisPlaying = playingIndex == index && isPlaying;
+                      return Card(
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: Icon(
+                                    isThisPlaying
+                                        ? Icons.pause
+                                        : Icons.play_arrow,
+                                  ),
+                                  onPressed: () {
+                                    if (isThisPlaying) {
+                                      _audioPlayer.stopPlayer();
+                                      setState(() {
+                                        isPlaying = false;
+                                        playingIndex = -1;
+                                        currentPosition = Duration.zero;
+                                      });
+                                    } else {
+                                      play(file, index);
+                                    }
+                                  },
+                                ),
+                                Expanded(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: Text(fileName),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.delete),
+                                  onPressed: () => deleteAudio(index),
+                                ),
+                              ],
+                            ),
+                            if (isThisPlaying)
+                              Row(
+                                children: [
+                                  Slider(
+                                    value: currentPosition.inMilliseconds
+                                        .toDouble(),
+                                    max:
+                                        totalDuration.inMilliseconds
+                                                .toDouble() >
+                                            0
+                                        ? totalDuration.inMilliseconds
+                                              .toDouble()
+                                        : 1,
+                                    onChanged: (v) {
+                                      final newPosition = Duration(
+                                        milliseconds: v.toInt(),
+                                      );
+                                      _audioPlayer.seekToPlayer(newPosition);
+                                      setState(() {
+                                        currentPosition = newPosition;
+                                      });
+                                    },
+                                  ),
+                                  // 显示当前进度和总时长
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      left: 8.0,
+                                      right: 8.0,
+                                    ),
+                                    child: Text(
+                                      "${currentPosition.inMinutes.toString()}:${(currentPosition.inSeconds % 60).toString()} / ${totalDuration.inMinutes.toString()}:${(totalDuration.inSeconds % 60).toString()}",
+                                      style: TextStyle(
+                                        fontSize: 12
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
