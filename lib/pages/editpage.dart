@@ -65,6 +65,7 @@ class _EditPageState extends State<EditPage> {
   late bool isPlaying;
   late Duration currentPosition;
   late Duration totalDuration;
+  late Duration recordingDuration;
 
   @override
   void initState() {
@@ -101,6 +102,7 @@ class _EditPageState extends State<EditPage> {
     isPlaying = false;
     currentPosition = Duration.zero;
     totalDuration = Duration.zero;
+    recordingDuration = Duration.zero;
   }
 
   @override
@@ -1339,17 +1341,6 @@ class _EditPageState extends State<EditPage> {
         ),
       );
     }
-    fucha = [
-      Card(
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: fucha,
-          ),
-        ),
-      ),
-    ];
   }
 
   Future<void> play(FileSystemEntity file, int index) async {
@@ -1413,15 +1404,26 @@ class _EditPageState extends State<EditPage> {
     // 录音按钮点击
     Future<void> onRecordPressed() async {
       if (!isRecording) {
+        _audioRecorder.setSubscriptionDuration(Duration(milliseconds: 1000));
         // 开始录音
         int idx = 1;
-        while (File('$recordDir$idx.aac').existsSync()) {
+        while (File(
+          '$recordDir${idx.toString().padLeft(4, '0')}.aac',
+        ).existsSync()) {
           idx++;
         }
-        currentRecordingPath = '$recordDir$idx.aac';
+        currentRecordingPath =
+            '$recordDir${idx.toString().padLeft(4, '0')}.aac';
         await openTheRecorder(currentRecordingPath!);
         setState(() {
           isRecording = true;
+        });
+        _audioRecorder.onProgress!.listen((event) {
+          if (mounted) {
+            setState(() {
+              recordingDuration = event.duration;
+            });
+          }
         });
       } else {
         var a = await _audioRecorder.stopRecorder();
@@ -1434,6 +1436,7 @@ class _EditPageState extends State<EditPage> {
         setState(() {
           isRecording = false;
           currentRecordingPath = null;
+          recordingDuration = Duration.zero;
         });
         await loadAudioFiles();
       }
@@ -1480,11 +1483,44 @@ class _EditPageState extends State<EditPage> {
             // 顶部录音按钮
             Row(
               children: [
+                // 使用单独的AnimatedSwitcher只控制图标部分
                 ElevatedButton.icon(
-                  icon: Icon(isRecording ? Icons.stop : Icons.mic),
-                  label: Text(isRecording ? '录音中...' : '录音'),
+                  icon: AnimatedSwitcher(
+                    duration: Duration(milliseconds: 200),
+                    transitionBuilder: (child, animation) {
+                      return ScaleTransition(
+                        scale: animation,
+                        child: FadeTransition(opacity: animation, child: child),
+                      );
+                    },
+                    child: Icon(
+                      key: ValueKey<bool>(isRecording),
+                      isRecording ? Icons.stop : Icons.mic,
+                      color: isRecording ? Colors.white : Colors.deepPurple,
+                    ),
+                  ),
+                  label: AnimatedDefaultTextStyle(
+                    duration: Duration(milliseconds: 150),
+                    style: TextStyle(
+                      fontWeight: isRecording
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: isRecording ? Colors.white : Colors.deepPurple,
+                    ),
+                    child: Text(
+                      isRecording
+                          ? '录音中${recordingDuration.inMinutes.toString().padLeft(2, '0')}:${(recordingDuration.inSeconds % 60).toString().padLeft(2, '0')}'
+                          : '点击开始',
+                    ),
+                  ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isRecording ? Colors.red : null,
+                    backgroundColor: isRecording
+                        ? Colors.red[400]
+                        : Colors.grey[200],
+                    foregroundColor: isRecording
+                        ? Colors.white
+                        : Colors.deepPurple,
+                    animationDuration: Duration(milliseconds: 200), // 添加按钮内置动画
                   ),
                   onPressed: onRecordPressed,
                 ),
@@ -1497,7 +1533,16 @@ class _EditPageState extends State<EditPage> {
             ...gerenshi,
             ...hunyushi,
             ...jiazushi,
-            ...fucha,
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: fucha,
+                ),
+              ),
+            ),
+
             // 录音文件列表
             if (audioFiles.isNotEmpty)
               Padding(
@@ -1551,25 +1596,27 @@ class _EditPageState extends State<EditPage> {
                             if (isThisPlaying)
                               Row(
                                 children: [
-                                  Slider(
-                                    value: currentPosition.inMilliseconds
-                                        .toDouble(),
-                                    max:
-                                        totalDuration.inMilliseconds
-                                                .toDouble() >
-                                            0
-                                        ? totalDuration.inMilliseconds
-                                              .toDouble()
-                                        : 1,
-                                    onChanged: (v) {
-                                      final newPosition = Duration(
-                                        milliseconds: v.toInt(),
-                                      );
-                                      _audioPlayer.seekToPlayer(newPosition);
-                                      setState(() {
-                                        currentPosition = newPosition;
-                                      });
-                                    },
+                                  Expanded(
+                                    child: Slider(
+                                      value: currentPosition.inMilliseconds
+                                          .toDouble(),
+                                      max:
+                                          totalDuration.inMilliseconds
+                                                  .toDouble() >
+                                              0
+                                          ? totalDuration.inMilliseconds
+                                                .toDouble()
+                                          : 1,
+                                      onChanged: (v) {
+                                        final newPosition = Duration(
+                                          milliseconds: v.toInt(),
+                                        );
+                                        _audioPlayer.seekToPlayer(newPosition);
+                                        setState(() {
+                                          currentPosition = newPosition;
+                                        });
+                                      },
+                                    ),
                                   ),
                                   // 显示当前进度和总时长
                                   Padding(
@@ -1578,10 +1625,8 @@ class _EditPageState extends State<EditPage> {
                                       right: 8.0,
                                     ),
                                     child: Text(
-                                      "${currentPosition.inMinutes.toString()}:${(currentPosition.inSeconds % 60).toString()} / ${totalDuration.inMinutes.toString()}:${(totalDuration.inSeconds % 60).toString()}",
-                                      style: TextStyle(
-                                        fontSize: 12
-                                      ),
+                                      "${currentPosition.inMinutes.toString().padLeft(2, '0')}:${(currentPosition.inSeconds % 60).toString().padLeft(2, '0')} / ${totalDuration.inMinutes.toString().padLeft(2, '0')}:${(totalDuration.inSeconds % 60).toString().padLeft(2, '0')}",
+                                      style: TextStyle(fontSize: 12),
                                     ),
                                   ),
                                 ],
@@ -1593,6 +1638,8 @@ class _EditPageState extends State<EditPage> {
                   ],
                 ),
               ),
+            // 录音文件列表结束
+            SizedBox(height: 24),
           ],
         ),
       ),
