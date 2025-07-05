@@ -4,7 +4,8 @@ import 'package:path_provider/path_provider.dart';
 
 class RecordPage extends StatefulWidget {
   final String uuid;
-  const RecordPage({Key? key, required this.uuid}) : super(key: key);
+  final String name;
+  const RecordPage({Key? key, required this.uuid,required this.name}) : super(key: key);
 
   @override
   State<RecordPage> createState() => _RecordPageState();
@@ -83,7 +84,7 @@ class _RecordPageState extends State<RecordPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('UUID: ${widget.uuid}'),
+        title: Text(widget.name),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),

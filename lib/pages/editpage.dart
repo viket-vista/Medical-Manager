@@ -1,13 +1,7 @@
 // ignore_for_file: prefer_if_null_operators
 
-import 'dart:math';
-
 import 'package:flutter/material.dart';
-import 'package:medicalmanager/pages/MedicalRecord.dart';
-import 'package:medicalmanager/tools/JsonParse.dart';
 import 'package:medicalmanager/tools/JsonChange.dart';
-import 'package:medicalmanager/tools/asyncBuildWidget.dart';
-import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/services.dart' show FilteringTextInputFormatter;
@@ -16,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:medicalmanager/models/settings_model.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'ShowPhotos.dart';
 
 class EditPage extends StatefulWidget {
   final Map<String, dynamic>? item;
@@ -49,6 +44,15 @@ class _EditPageState extends State<EditPage> {
   TextEditingController tizhong = TextEditingController();
   TextEditingController shuimian = TextEditingController();
   List<dynamic> Zhengzhuang = [];
+  static const String FC_KEY = '外院辅助检查';
+  static const List<String> FC_MENU_ITEMS = [
+    '时间',
+    '医院',
+    '项目',
+    '结果',
+    '其他',
+    '图片',
+  ];
   late List<Widget> jiwangshi;
   late List<Widget> gerenshi;
   late List<bool> _switch;
@@ -63,6 +67,7 @@ class _EditPageState extends State<EditPage> {
   late List<FileSystemEntity> audioFiles;
   late int playingIndex;
   late bool isPlaying;
+  late bool ispausing;
   late Duration currentPosition;
   late Duration totalDuration;
   late Duration recordingDuration;
@@ -93,7 +98,7 @@ class _EditPageState extends State<EditPage> {
     buildjiazushi();
     fcremovemode = false;
     fucha = [];
-    buildfucha();
+    buildFucha();
     isRecording = false;
     _audioRecorder.openRecorder(isBGService: true);
     audioFiles = [];
@@ -103,6 +108,7 @@ class _EditPageState extends State<EditPage> {
     currentPosition = Duration.zero;
     totalDuration = Duration.zero;
     recordingDuration = Duration.zero;
+    ispausing = false;
   }
 
   @override
@@ -141,6 +147,15 @@ class _EditPageState extends State<EditPage> {
       file.create();
     }
     await file.writeAsString(jsonStr);
+  }
+
+  void quit() {
+    Map<String, dynamic> returnjson = {};
+    returnjson["name"] = MedicalRecord["name"];
+    returnjson["age"] = MedicalRecord["age"];
+    returnjson["created_at"] = MedicalRecord["created_at"];
+    returnjson["last_edit_at"] = DateTime.now().millisecondsSinceEpoch;
+    returnjson["uuid"] = uuid;
     widget.onSave(returnjson);
     Navigator.pop(context);
   }
@@ -1213,134 +1228,195 @@ class _EditPageState extends State<EditPage> {
     );
   }
 
-  void addfc() {
+  // 在State类顶部定义常量
+
+  // 改进后的函数
+  void addFcItem() {
     setState(() {
-      int number = fucha.length - 1;
-      List<TextEditingController> zz = List.generate(
-        4,
-        (_) => TextEditingController(),
-      );
-      List<String> menu = ['时间', '医院', '项目', '结果'];
-      for (int j = 0; j <= 3; j++) {
-        array1[zz[j]] = ['外院辅助检查', number, menu[j]];
-        MedicalRecord = JsonAdd(['外院辅助检查', number, menu[j]], MedicalRecord, '');
-        zz[j].text = '';
+      // 获取新项目的索引
+      final number = MedicalRecord[FC_KEY]?.length ?? 0;
+
+      // 初始化新项目数据结构
+      if (!MedicalRecord.containsKey(FC_KEY)) {
+        MedicalRecord[FC_KEY] = [];
       }
-      fucha.add(
-        ExpansionTile(
-          title: Row(
-            children: [
-              Text('辅查'),
-              Spacer(),
-              if (fcremovemode)
-                IconButton(
-                  onPressed: () {
-                    MedicalRecord = JsonDel(['外院辅助检查', number], MedicalRecord);
-                    setState(() {
-                      fucha.clear();
-                      buildfucha();
-                    });
-                  },
-                  icon: Icon(Icons.remove),
-                ),
-            ],
-          ),
-          children: [
-            for (int j = 0; j <= 3; j++)
-              Padding(
-                padding: EdgeInsets.all(20),
-                child: TextField(
-                  controller: zz[j],
-                  decoration: InputDecoration(labelText: menu[j]),
-                  onChanged: (value) {
-                    MedicalRecord = JsonChange(
-                      ['外院辅助检查', number, menu[j]],
-                      MedicalRecord,
-                      value,
-                    );
-                  },
-                ),
-              ),
-          ],
-        ),
+      MedicalRecord[FC_KEY].add({for (var item in FC_MENU_ITEMS) item: ''});
+
+      // 创建UI项
+      final newItem = _buildFcItem(
+        index: number,
+        data: MedicalRecord[FC_KEY][number],
+        onRemove: () => _removeFcItem(number),
       );
+
+      // 添加到UI列表
+      fucha.add(newItem);
     });
   }
 
-  void buildfucha() {
+  void buildFucha() {
+    // 清空现有列表
+    fucha.clear();
+
+    // 添加标题行
     fucha.add(
       Row(
         children: [
-          Text('辅助检查'),
-          Spacer(),
+          const Text('辅助检查', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Spacer(),
           IconButton(
-            onPressed: () {
-              addfc();
-            },
-            icon: Icon(Icons.add),
+            icon: const Icon(Icons.add),
+            onPressed: addFcItem,
+            tooltip: '添加辅查',
           ),
           IconButton(
+            icon: Icon(fcremovemode ? Icons.done : Icons.delete),
             onPressed: () {
-              fcremovemode = !fcremovemode;
               setState(() {
-                fucha.clear();
-                buildfucha();
+                fcremovemode = !fcremovemode;
+                // 重新构建列表以更新删除按钮状态
+                buildFucha();
               });
             },
-            icon: Icon(Icons.remove),
+            tooltip: fcremovemode ? '退出删除模式' : '删除模式',
+            color: fcremovemode ? Colors.red : null,
           ),
         ],
       ),
     );
-    for (int i = 0; i < MedicalRecord['外院辅助检查'].length; i++) {
-      List<TextEditingController> fc = List.generate(
-        4,
-        (_) => TextEditingController(),
-      );
-      List<String> menu = ['时间', '医院', '项目', '结果'];
-      for (int j = 0; j <= 3; j++) {
-        fc[j].text = MedicalRecord['外院辅助检查'][i][menu[j]];
-        array1[fc[j]] = ['外院辅助检查', i, menu[j]];
-      }
-      fucha.add(
-        ExpansionTile(
-          title: Row(
-            children: [
-              Text('辅查'),
-              Spacer(),
-              if (fcremovemode)
-                IconButton(
-                  onPressed: () {
-                    MedicalRecord = JsonDel(['外院辅助检查', i], MedicalRecord);
-                    setState(() {
-                      fucha.clear();
-                      buildfucha();
-                    });
-                  },
-                  icon: Icon(Icons.remove),
-                ),
-            ],
+
+    // 添加现有项目
+    if (MedicalRecord[FC_KEY] != null) {
+      for (int i = 0; i < MedicalRecord[FC_KEY].length; i++) {
+        fucha.add(
+          _buildFcItem(
+            index: i,
+            data: MedicalRecord[FC_KEY][i],
+            onRemove: () => _removeFcItem(i),
           ),
-          children: [
-            for (int j = 0; j <= 3; j++)
-              Padding(
-                padding: EdgeInsets.all(20),
-                child: TextField(
-                  controller: fc[j],
-                  decoration: InputDecoration(labelText: menu[j]),
-                  onChanged: (value) {
-                    MedicalRecord = JsonChange(
-                      ['外院辅助检查', i, menu[j]],
-                      MedicalRecord,
-                      value,
-                    );
-                  },
-                ),
-              ),
-          ],
-        ),
-      );
+        );
+      }
     }
+  }
+
+  // 辅助函数：构建单个辅查项目
+  Widget _buildFcItem({
+    required int index,
+    required Map<String, dynamic> data,
+    required VoidCallback onRemove,
+  }) {
+    // 为每个字段创建控制器
+    final controllers = List<TextEditingController>.generate(
+      FC_MENU_ITEMS.length - 1, // 减去图片字段
+      (j) {
+        final controller = TextEditingController(
+          text: data[FC_MENU_ITEMS[j]]?.toString() ?? '',
+        );
+
+        // 设置控制器关联的数据路径
+        array1[controller] = [FC_KEY, index, FC_MENU_ITEMS[j]];
+
+        return controller;
+      },
+    );
+
+    return ExpansionTile(
+      key: ValueKey('fc_$index'), // 添加key以优化性能
+      title: Row(
+        children: [
+          Text('辅查 ${index + 1}'), // 添加序号
+          const Spacer(),
+          IconButton(
+            onPressed: () {
+              try {
+                MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]] =
+                    MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]] is List
+                    ? MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]]
+                    : [];
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ImageGalleryPage(
+                      imageData: MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]],
+                      uuid: widget.item?['uuid'],
+                      name: MedicalRecord['name'],
+                      onreturn: (newitem) {
+                        setState(() {
+                          MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]] =
+                              newitem;
+                        });
+                        saveData();
+                      },
+                    ),
+                  ),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('图片库加载失败: $e')));
+              }
+            },
+            icon: Icon(Icons.photo_library),
+          ),
+          if (fcremovemode)
+            IconButton(
+              icon: const Icon(Icons.delete, size: 20),
+              onPressed: onRemove,
+              tooltip: '删除此项',
+              color: Colors.red,
+            ),
+        ],
+      ),
+      children: [
+        for (int j = 0; j < FC_MENU_ITEMS.length - 1; j++)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: TextField(
+              controller: controllers[j],
+              decoration: InputDecoration(
+                labelText: FC_MENU_ITEMS[j],
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+              onChanged: (value) {
+                // 更新数据结构
+                MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[j]] = value;
+
+                // 更新全局映射
+                array1[controllers[j]] = [FC_KEY, index, FC_MENU_ITEMS[j]];
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  // 辅助函数：删除项目
+  void _removeFcItem(int index) {
+    setState(() {
+      // 从数据结构中移除
+      MedicalRecord[FC_KEY].removeAt(index);
+
+      // 清理关联的控制器
+      _cleanupFcControllers(index);
+
+      // 重建UI
+      buildFucha();
+    });
+  }
+
+  // 辅助函数：清理控制器
+  void _cleanupFcControllers(int removedIndex) {
+    // 移除被删除项的控制器
+    array1.removeWhere((controller, path) {
+      return path[0] == FC_KEY && path[1] == removedIndex;
+    });
+
+    // 更新剩余项的索引
+    array1.forEach((controller, path) {
+      if (path[0] == FC_KEY && path[1] > removedIndex) {
+        array1[controller] = [FC_KEY, path[1] - 1, path[2]];
+      }
+    });
   }
 
   Future<void> play(FileSystemEntity file, int index) async {
@@ -1353,6 +1429,7 @@ class _EditPageState extends State<EditPage> {
           isPlaying = false;
           playingIndex = -1;
           currentPosition = Duration.zero;
+          ispausing = false;
         });
       },
     );
@@ -1365,6 +1442,7 @@ class _EditPageState extends State<EditPage> {
     setState(() {
       isPlaying = true;
       playingIndex = index;
+      ispausing = false;
     });
   }
 
@@ -1465,7 +1543,13 @@ class _EditPageState extends State<EditPage> {
           widget.item == null ? '新建病历' : '编辑病历:${MedicalRecord['name']}',
         ),
         actions: [
-          IconButton(icon: Icon(Icons.save), onPressed: saveData),
+          IconButton(
+            icon: Icon(Icons.save),
+            onPressed: () {
+              saveData();
+              quit();
+            },
+          ),
           if (widget.item != null)
             IconButton(
               icon: Icon(Icons.delete),
@@ -1509,7 +1593,7 @@ class _EditPageState extends State<EditPage> {
                     ),
                     child: Text(
                       isRecording
-                          ? '录音中${recordingDuration.inMinutes.toString().padLeft(2, '0')}:${(recordingDuration.inSeconds % 60).toString().padLeft(2, '0')}'
+                          ? '  ${recordingDuration.inMinutes.toString().padLeft(2, '0')}:${(recordingDuration.inSeconds % 60).toString().padLeft(2, '0')}   '
                           : '点击开始',
                     ),
                   ),
@@ -1564,23 +1648,41 @@ class _EditPageState extends State<EditPage> {
                               children: [
                                 IconButton(
                                   icon: Icon(
-                                    isThisPlaying
+                                    isThisPlaying && !ispausing
                                         ? Icons.pause
                                         : Icons.play_arrow,
                                   ),
                                   onPressed: () {
                                     if (isThisPlaying) {
-                                      _audioPlayer.stopPlayer();
-                                      setState(() {
-                                        isPlaying = false;
-                                        playingIndex = -1;
-                                        currentPosition = Duration.zero;
-                                      });
+                                      if (ispausing) {
+                                        _audioPlayer.resumePlayer();
+                                        setState(() {
+                                          ispausing = false;
+                                        });
+                                      } else {
+                                        _audioPlayer.pausePlayer();
+                                        setState(() {
+                                          ispausing = true;
+                                        });
+                                      }
                                     } else {
                                       play(file, index);
                                     }
                                   },
                                 ),
+                                if (isThisPlaying)
+                                  IconButton(
+                                    onPressed: () {
+                                      _audioPlayer.stopPlayer();
+                                      setState(() {
+                                        ispausing = false;
+                                        isPlaying = false;
+                                        currentPosition = Duration.zero;
+                                        totalDuration = Duration.zero;
+                                      });
+                                    },
+                                    icon: Icon(Icons.stop),
+                                  ),
                                 Expanded(
                                   child: Padding(
                                     padding: EdgeInsets.all(8.0),

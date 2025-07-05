@@ -160,7 +160,7 @@ class PageState extends State<MedicalRecordPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => RecordPage(uuid: item['uuid']),
+                    builder: (context) => RecordPage(uuid: item['uuid'],name: item['name'],),
                   ),
                 );
               },
@@ -189,27 +189,30 @@ class PageState extends State<MedicalRecordPage> {
                         },
                         icon: Icon(Icons.delete_rounded),
                       ),
-                    IconButton(
-                      onPressed: () async {
-                        Map<String, dynamic> mr = await loaddata1(item['uuid']);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => EditPage(
-                              medicalRecord1: mr,
-                              item: item,
-                              onSave: (updatedItem) {
-                                updatedata(index, updatedItem);
-                              },
-                              onDelete: () {
-                                deleteItem(index);
-                              },
+                    if (!deletemode)
+                      IconButton(
+                        onPressed: () async {
+                          Map<String, dynamic> mr = await loaddata1(
+                            item['uuid'],
+                          );
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => EditPage(
+                                medicalRecord1: mr,
+                                item: item,
+                                onSave: (updatedItem) {
+                                  updatedata(index, updatedItem);
+                                },
+                                onDelete: () {
+                                  deleteItem(index);
+                                },
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                      icon: Icon(Icons.info),
-                    ),
+                          );
+                        },
+                        icon: Icon(Icons.info),
+                      ),
                   ],
                 ),
               ),
