@@ -10,6 +10,11 @@ import 'package:flutter_sound/flutter_sound.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'ShowPhotos.dart';
 
+const double _sectionSpacing = 24.0;
+const double _cardPadding = 16.0;
+const double _inputPadding = 12.0;
+const double _titleFontSize = 18.0;
+
 class EditPage extends StatefulWidget {
   final Map<String, dynamic>? item;
   final Function(Map<String, dynamic>) onSave;
@@ -212,7 +217,7 @@ class _EditPageState extends State<EditPage> {
     );
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(_cardPadding),
         child: Row(
           children: [
             Flexible(child: NAME),
@@ -238,7 +243,7 @@ class _EditPageState extends State<EditPage> {
   Widget buildZhusu() {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(_cardPadding),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -264,15 +269,13 @@ class _EditPageState extends State<EditPage> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
-        SizedBox(height: 16),
-        Text("现病史"),
-        SizedBox(height: 8),
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(_cardPadding),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                Text("现病史"),
                 ExpansionTile(
                   title: Row(
                     children: [
@@ -299,9 +302,8 @@ class _EditPageState extends State<EditPage> {
                   children: [...Zhengzhuang],
                 ),
                 Divider(),
-                SizedBox(height: 4),
                 Padding(
-                  padding: EdgeInsets.all(6),
+                  padding: EdgeInsets.all(_inputPadding),
                   child: buildExpandTextEdit(dabian, '大便', (value) {
                     MedicalRecord = JsonChange(
                       ["现病史", '一般情况', '大便'],
@@ -311,7 +313,7 @@ class _EditPageState extends State<EditPage> {
                   }),
                 ),
                 Padding(
-                  padding: EdgeInsets.all(6),
+                  padding: EdgeInsets.all(_inputPadding),
                   child: buildExpandTextEdit(xiaobian, '小便', (value) {
                     MedicalRecord = JsonChange(
                       ["现病史", '一般情况', '小便'],
@@ -321,7 +323,7 @@ class _EditPageState extends State<EditPage> {
                   }),
                 ),
                 Padding(
-                  padding: EdgeInsets.all(6),
+                  padding: EdgeInsets.all(_inputPadding),
                   child: buildExpandTextEdit(shuimian, '精神', (value) {
                     MedicalRecord = JsonChange(
                       ["现病史", '一般情况', '精神'],
@@ -331,7 +333,7 @@ class _EditPageState extends State<EditPage> {
                   }),
                 ),
                 Padding(
-                  padding: EdgeInsets.all(6),
+                  padding: EdgeInsets.all(_inputPadding),
                   child: buildExpandTextEdit(tizhong, '体重', (value) {
                     MedicalRecord = JsonChange(
                       ["现病史", '一般情况', '体重'],
@@ -400,7 +402,7 @@ class _EditPageState extends State<EditPage> {
           children: [
             for (int j = 0; j <= 7; j++)
               Padding(
-                padding: EdgeInsets.all(16),
+                padding: EdgeInsets.all(_inputPadding),
                 child: TextField(
                   controller: zz[j],
                   decoration: InputDecoration(labelText: menu[j]),
@@ -465,7 +467,7 @@ class _EditPageState extends State<EditPage> {
           children: [
             for (int j = 0; j <= 7; j++)
               Padding(
-                padding: EdgeInsets.all(16),
+                padding: EdgeInsets.all(_inputPadding),
                 child: TextField(
                   controller: zz[j],
                   decoration: InputDecoration(labelText: menu[j]),
@@ -548,7 +550,7 @@ class _EditPageState extends State<EditPage> {
                 children: [
                   for (int k = 0; k < entry.value[j].length; k++)
                     Padding(
-                      padding: EdgeInsets.all(6),
+                      padding: EdgeInsets.all(_inputPadding),
                       child: TextField(
                         controller: any[k],
                         decoration: InputDecoration(
@@ -583,7 +585,7 @@ class _EditPageState extends State<EditPage> {
                 children: [
                   Expanded(
                     child: Padding(
-                      padding: EdgeInsets.all(20),
+                      padding: EdgeInsets.all(_inputPadding),
                       child: TextField(
                         controller: text,
                         onChanged: (value) {
@@ -632,7 +634,7 @@ class _EditPageState extends State<EditPage> {
         var text = TextEditingController();
         temp1.add(
           Padding(
-            padding: EdgeInsets.all(6),
+            padding: EdgeInsets.all(_inputPadding),
             child: TextField(
               controller: text,
               decoration: InputDecoration(labelText: entry.key),
@@ -650,14 +652,12 @@ class _EditPageState extends State<EditPage> {
     }
     jiwangshi.add(
       Column(
-        mainAxisAlignment: MainAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(height: 16),
           Text("既往史"),
-          SizedBox(height: 8),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(_cardPadding),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [...temp1, Divider()],
@@ -723,7 +723,7 @@ class _EditPageState extends State<EditPage> {
     gerenshi.add(
       Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(_cardPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -746,8 +746,8 @@ class _EditPageState extends State<EditPage> {
               ),
               if (_switch[0])
                 Container(
-                  margin: EdgeInsets.only(top: 20),
-                  padding: EdgeInsets.all(16),
+                  margin: EdgeInsets.only(top: _inputPadding),
+                  padding: EdgeInsets.all(_inputPadding),
                   child: Row(
                     children: [
                       Expanded(
@@ -768,7 +768,7 @@ class _EditPageState extends State<EditPage> {
                       ),
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(_inputPadding),
                           child: TextField(
                             controller: text['吸烟'][1],
                             decoration: InputDecoration(labelText: '吸烟频率'),
@@ -796,7 +796,7 @@ class _EditPageState extends State<EditPage> {
                       if (text['吸烟'][2])
                         Expanded(
                           child: Padding(
-                            padding: const EdgeInsets.all(6),
+                            padding: const EdgeInsets.all(_inputPadding),
                             child: TextField(
                               controller: text['吸烟'][3],
                               decoration: InputDecoration(labelText: '戒除时间'),
@@ -832,12 +832,12 @@ class _EditPageState extends State<EditPage> {
               ),
               if (_switch[1])
                 Container(
-                  padding: EdgeInsets.all(6),
+                  padding: EdgeInsets.all(_inputPadding),
                   child: Row(
                     children: [
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(_inputPadding),
                           child: TextField(
                             controller: text['饮酒'][0],
                             decoration: InputDecoration(labelText: '饮酒时长'),
@@ -853,7 +853,7 @@ class _EditPageState extends State<EditPage> {
                       ),
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(_inputPadding),
                           child: TextField(
                             controller: text['饮酒'][1],
                             decoration: InputDecoration(labelText: '饮酒频率'),
@@ -877,7 +877,7 @@ class _EditPageState extends State<EditPage> {
                   if (_switch[2])
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(_inputPadding),
                         child: TextField(
                           controller: text['成瘾物'][0],
                           decoration: InputDecoration(labelText: '种类'),
@@ -906,7 +906,10 @@ class _EditPageState extends State<EditPage> {
                 ],
               ),
               Padding(
-                padding: const EdgeInsets.only(top: 6, bottom: 6),
+                padding: const EdgeInsets.only(
+                  top: _inputPadding,
+                  bottom: _inputPadding,
+                ),
                 child: TextField(
                   controller: TextEditingController(
                     text: MedicalRecord['个人史']['生活史'],
@@ -922,7 +925,10 @@ class _EditPageState extends State<EditPage> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.only(top: 6, bottom: 6),
+                padding: const EdgeInsets.only(
+                  top: _inputPadding,
+                  bottom: _inputPadding,
+                ),
                 child: TextField(
                   controller: TextEditingController(
                     text: MedicalRecord['个人史']['职业'],
@@ -938,7 +944,10 @@ class _EditPageState extends State<EditPage> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.only(top: 6, bottom: 6),
+                padding: const EdgeInsets.only(
+                  top: _inputPadding,
+                  bottom: _inputPadding,
+                ),
                 child: TextField(
                   controller: TextEditingController(
                     text: MedicalRecord['个人史']['其他'],
@@ -1005,7 +1014,7 @@ class _EditPageState extends State<EditPage> {
     hunyushi.add(
       Card(
         child: Padding(
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.all(_cardPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1185,7 +1194,7 @@ class _EditPageState extends State<EditPage> {
     jiazushi.add(
       Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(_cardPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1336,44 +1345,47 @@ class _EditPageState extends State<EditPage> {
         children: [
           Text('辅查 ${index + 1}'), // 添加序号
           const Spacer(),
-          IconButton(
-            onPressed: () {
-              try {
-                MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]] =
-                    MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]] is List
-                    ? MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]]
-                    : [];
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ImageGalleryPage(
-                      imageData: MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]],
-                      uuid: widget.item?['uuid'],
-                      name: MedicalRecord['name'],
-                      onreturn: (newitem) {
-                        setState(() {
-                          MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]] =
-                              newitem;
-                        });
-                        saveData();
-                      },
-                    ),
-                  ),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('图片库加载失败: $e')));
-              }
-            },
-            icon: Icon(Icons.photo_library),
-          ),
+
           if (fcremovemode)
             IconButton(
               icon: const Icon(Icons.delete, size: 20),
               onPressed: onRemove,
               tooltip: '删除此项',
               color: Colors.red,
+            )
+          else
+            IconButton(
+              onPressed: () {
+                try {
+                  MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]] =
+                      MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]] is List
+                      ? MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]]
+                      : [];
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ImageGalleryPage(
+                        imageData:
+                            MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]],
+                        uuid: widget.item?['uuid'],
+                        name: MedicalRecord['name'],
+                        onreturn: (newitem) {
+                          setState(() {
+                            MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]] =
+                                newitem;
+                          });
+                          saveData();
+                        },
+                      ),
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('图片库加载失败: $e')));
+                }
+              },
+              icon: Icon(Icons.photo_library),
             ),
         ],
       ),
@@ -1474,7 +1486,7 @@ class _EditPageState extends State<EditPage> {
             ...jiazushi,
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(_cardPadding),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: fucha,
@@ -1588,9 +1600,7 @@ class _EditPageState extends State<EditPage> {
           label: AnimatedDefaultTextStyle(
             duration: Duration(milliseconds: 150),
             style: TextStyle(
-              fontWeight: isRecording
-                  ? FontWeight.bold
-                  : FontWeight.normal,
+              fontWeight: isRecording ? FontWeight.bold : FontWeight.normal,
               color: isRecording ? Colors.white : Colors.deepPurple,
             ),
             child: Text(
@@ -1600,12 +1610,8 @@ class _EditPageState extends State<EditPage> {
             ),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: isRecording
-                ? Colors.red[400]
-                : Colors.grey[200],
-            foregroundColor: isRecording
-                ? Colors.white
-                : Colors.deepPurple,
+            backgroundColor: isRecording ? Colors.red[400] : Colors.grey[200],
+            foregroundColor: isRecording ? Colors.white : Colors.deepPurple,
             animationDuration: Duration(milliseconds: 200),
           ),
           onPressed: onRecordPressed,
@@ -1655,102 +1661,98 @@ class _EditPageState extends State<EditPage> {
           Text('录音列表', style: TextStyle(fontWeight: FontWeight.bold)),
           ...List.generate(audioFiles.length, (index) {
             final file = audioFiles[index];
-            final fileName = file.path
-                .split(Platform.pathSeparator)
-                .last;
+            final fileName = file.path.split(Platform.pathSeparator).last;
             final isThisPlaying = playingIndex == index && isPlaying;
             return Card(
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          isThisPlaying && !ispausing
-                              ? Icons.pause
-                              : Icons.play_arrow,
-                        ),
-                        onPressed: () {
-                          if (isThisPlaying) {
-                            if (ispausing) {
-                              _audioPlayer.resumePlayer();
-                              setState(() {
-                                ispausing = false;
-                              });
-                            } else {
-                              _audioPlayer.pausePlayer();
-                              setState(() {
-                                ispausing = true;
-                              });
-                            }
-                          } else {
-                            play(file, index);
-                          }
-                        },
-                      ),
-                      if (isThisPlaying)
-                        IconButton(
-                          onPressed: () {
-                            _audioPlayer.stopPlayer();
-                            setState(() {
-                              ispausing = false;
-                              isPlaying = false;
-                              currentPosition = Duration.zero;
-                              totalDuration = Duration.zero;
-                            });
-                          },
-                          icon: Icon(Icons.stop),
-                        ),
-                      Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.all(8.0),
-                          child: Text(fileName),
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.delete),
-                        onPressed: () => deleteAudio(index),
-                      ),
-                    ],
-                  ),
-                  if (isThisPlaying)
+              child: Padding(
+                padding: const EdgeInsets.all(_cardPadding),
+                child: Column(
+                  children: [
                     Row(
                       children: [
-                        Expanded(
-                          child: Slider(
-                            value: currentPosition.inMilliseconds
-                                .toDouble(),
-                            max:
-                                totalDuration.inMilliseconds
-                                        .toDouble() >
-                                    0
-                                ? totalDuration.inMilliseconds
-                                      .toDouble()
-                                : 1,
-                            onChanged: (v) {
-                              final newPosition = Duration(
-                                milliseconds: v.toInt(),
-                              );
-                              _audioPlayer.seekToPlayer(newPosition);
+                        IconButton(
+                          icon: Icon(
+                            isThisPlaying && !ispausing
+                                ? Icons.pause
+                                : Icons.play_arrow,
+                          ),
+                          onPressed: () {
+                            if (isThisPlaying) {
+                              if (ispausing) {
+                                _audioPlayer.resumePlayer();
+                                setState(() {
+                                  ispausing = false;
+                                });
+                              } else {
+                                _audioPlayer.pausePlayer();
+                                setState(() {
+                                  ispausing = true;
+                                });
+                              }
+                            } else {
+                              play(file, index);
+                            }
+                          },
+                        ),
+                        if (isThisPlaying)
+                          IconButton(
+                            onPressed: () {
+                              _audioPlayer.stopPlayer();
                               setState(() {
-                                currentPosition = newPosition;
+                                ispausing = false;
+                                isPlaying = false;
+                                currentPosition = Duration.zero;
+                                totalDuration = Duration.zero;
                               });
                             },
+                            icon: Icon(Icons.stop),
+                          ),
+                        Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: Text(fileName),
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            left: 8.0,
-                            right: 8.0,
-                          ),
-                          child: Text(
-                            "${currentPosition.inMinutes.toString().padLeft(2, '0')}:${(currentPosition.inSeconds % 60).toString().padLeft(2, '0')} / ${totalDuration.inMinutes.toString().padLeft(2, '0')}:${(totalDuration.inSeconds % 60).toString().padLeft(2, '0')}",
-                            style: TextStyle(fontSize: 12),
-                          ),
+                        IconButton(
+                          icon: Icon(Icons.delete),
+                          onPressed: () => deleteAudio(index),
                         ),
                       ],
                     ),
-                ],
+                    if (isThisPlaying)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: currentPosition.inMilliseconds.toDouble(),
+                              max: totalDuration.inMilliseconds.toDouble() > 0
+                                  ? totalDuration.inMilliseconds.toDouble()
+                                  : 1,
+                              onChanged: (v) {
+                                final newPosition = Duration(
+                                  milliseconds: v.toInt(),
+                                );
+                                _audioPlayer.seekToPlayer(newPosition);
+                                setState(() {
+                                  currentPosition = newPosition;
+                                });
+                              },
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              left: 8.0,
+                              right: 8.0,
+                            ),
+                            child: Text(
+                              "${currentPosition.inMinutes.toString().padLeft(2, '0')}:${(currentPosition.inSeconds % 60).toString().padLeft(2, '0')} / ${totalDuration.inMinutes.toString().padLeft(2, '0')}:${(totalDuration.inSeconds % 60).toString().padLeft(2, '0')}",
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
               ),
             );
           }),
