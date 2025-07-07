@@ -1528,7 +1528,7 @@ class _EditPageState extends State<EditPage> {
 
   Widget _buildRecordButtonSection(BuildContext context) {
     final String recordDir =
-        '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/';
+        '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/入院记录/';
     Future<void> openTheRecorder(String tofile) async {
       await Permission.microphone.request();
       final parentDir = File(tofile).parent;
@@ -1647,7 +1647,7 @@ class _EditPageState extends State<EditPage> {
         currentPosition = Duration.zero;
       });
       final String recordDir =
-          '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/';
+          '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/入院记录/';
       await _loadAudioFiles(recordDir);
     }
 
