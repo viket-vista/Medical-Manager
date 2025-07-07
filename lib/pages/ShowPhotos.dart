@@ -93,7 +93,7 @@ class _ImageGalleryPageState extends State<ImageGalleryPage> {
         final filename = '${widget.uuid}_$timestamp$ext';
         final destPath = path.join(_imageDirectory!.path, filename);
         
-        final newFile = await File(pickedFile.path).copy(destPath);
+        await File(pickedFile.path).copy(destPath);
         
         setState(() {
           _images.add(filename); // 只存储文件名

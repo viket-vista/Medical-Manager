@@ -1,3 +1,4 @@
+// ignore: file_names
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:medicalmanager/models/settings_model.dart';
@@ -156,7 +157,6 @@ class PageState extends State<MedicalRecordPage> {
             item = allMHEntry[index];
             return GestureDetector(
               onTap: () async {
-                Map<String, dynamic> mr = await loaddata1(item['uuid']);
                 Navigator.push(
                   context,
                   MaterialPageRoute(

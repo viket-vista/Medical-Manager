@@ -1,5 +1,3 @@
-// ignore_for_file: prefer_if_null_operators
-
 import 'package:flutter/material.dart';
 import 'package:medicalmanager/tools/JsonChange.dart';
 import 'dart:io';
@@ -43,6 +41,10 @@ class _EditPageState extends State<EditPage> {
   TextEditingController xiaobian = TextEditingController();
   TextEditingController tizhong = TextEditingController();
   TextEditingController shuimian = TextEditingController();
+  // 家族史相关 controller 缓存
+  late TextEditingController _jiashuFumuController;
+  late TextEditingController _jiashuYichuanController;
+  late TextEditingController _jiashuManxingController;
   List<dynamic> Zhengzhuang = [];
   static const String FC_KEY = '外院辅助检查';
   static const List<String> FC_MENU_ITEMS = [
@@ -85,6 +87,16 @@ class _EditPageState extends State<EditPage> {
     name.text = MedicalRecord['name'];
     age.text = MedicalRecord['age'];
     zhusu.text = MedicalRecord['主诉'];
+    // 初始化家族史 controller
+    _jiashuFumuController = TextEditingController(
+      text: MedicalRecord['家族史']?['父母、兄弟姐妹'] ?? '',
+    );
+    _jiashuYichuanController = TextEditingController(
+      text: MedicalRecord['家族史']?['遗传病'] ?? '',
+    );
+    _jiashuManxingController = TextEditingController(
+      text: MedicalRecord['家族史']?['慢性病'] ?? '',
+    );
     zzremovemode = false;
     buildZhengzhuang();
     jiwangshi = [];
@@ -120,6 +132,9 @@ class _EditPageState extends State<EditPage> {
     xiaobian.dispose();
     tizhong.dispose();
     shuimian.dispose();
+    _jiashuFumuController.dispose();
+    _jiashuYichuanController.dispose();
+    _jiashuManxingController.dispose();
     for (var controllers in array.entries) {
       controllers.key.dispose();
     }
@@ -1028,6 +1043,7 @@ class _EditPageState extends State<EditPage> {
                   Spacer(),
                   Switch(
                     value: MedicalRecord['婚育史']['生育']['enabled'],
+                    activeColor: Colors.green, // 明确区分开关状态
                     onChanged: (bool newValue) {
                       setState(() {
                         MedicalRecord['婚育史']['生育']['enabled'] = newValue;
@@ -1176,13 +1192,11 @@ class _EditPageState extends State<EditPage> {
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: TextField(
-                  controller: TextEditingController(
-                    text: MedicalRecord['家族史']['父母、兄弟姐妹'],
-                  ),
+                  controller: _jiashuFumuController,
                   decoration: InputDecoration(labelText: '父母、兄弟姐妹'),
                   onChanged: (value) {
                     MedicalRecord = JsonChange(
-                      ['婚育史', '父母、兄弟姐妹'],
+                      ['家族史', '父母、兄弟姐妹'],
                       MedicalRecord,
                       value,
                     );
@@ -1192,13 +1206,11 @@ class _EditPageState extends State<EditPage> {
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: TextField(
-                  controller: TextEditingController(
-                    text: MedicalRecord['家族史']['遗传病'],
-                  ),
+                  controller: _jiashuYichuanController,
                   decoration: InputDecoration(labelText: '遗传病'),
                   onChanged: (value) {
                     MedicalRecord = JsonChange(
-                      ['婚育史', '遗传病'],
+                      ['家族史', '遗传病'],
                       MedicalRecord,
                       value,
                     );
@@ -1208,13 +1220,11 @@ class _EditPageState extends State<EditPage> {
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: TextField(
-                  controller: TextEditingController(
-                    text: MedicalRecord['家族史']['慢性病'],
-                  ),
+                  controller: _jiashuManxingController,
                   decoration: InputDecoration(labelText: '慢性病'),
                   onChanged: (value) {
                     MedicalRecord = JsonChange(
-                      ['婚育史', '慢性病'],
+                      ['家族史', '慢性病'],
                       MedicalRecord,
                       value,
                     );
@@ -1448,42 +1458,77 @@ class _EditPageState extends State<EditPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 录音相关变量
+    return Scaffold(
+      appBar: _buildAppBar(),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(6),
+        child: Column(
+          children: [
+            _buildRecordButtonSection(context),
+            buildBasicInfo(),
+            buildZhusu(),
+            buildXianbingshi(),
+            ...jiwangshi,
+            ...gerenshi,
+            ...hunyushi,
+            ...jiazushi,
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: fucha,
+                ),
+              ),
+            ),
+            _buildAudioFileList(context),
+            SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: Text(
+        widget.item == null ? '新建病历' : '编辑病历:${MedicalRecord['name']}',
+      ),
+      actions: [
+        IconButton(
+          icon: Icon(Icons.save),
+          onPressed: () {
+            saveData();
+            quit();
+          },
+        ),
+        if (widget.item != null)
+          IconButton(
+            icon: Icon(Icons.delete),
+            onPressed: () {
+              widget.onDelete();
+              Navigator.pop(context);
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _buildRecordButtonSection(BuildContext context) {
     final String recordDir =
         '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/';
-    final player = ValueNotifier<dynamic>(null);
-
-    // 获取所有录音文件
-    Future<void> loadAudioFiles() async {
-      final dir = Directory(recordDir);
-      if (isRecording) {
-        return;
-      }
-      if (await dir.exists()) {
-        final files =
-            dir.listSync().where((f) => f.path.endsWith('.aac')).toList()
-              ..sort((a, b) => a.path.compareTo(b.path));
-        setState(() {
-          audioFiles = files;
-        });
-      } else {
-        await dir.create(recursive: true);
-      }
-    }
-
     Future<void> openTheRecorder(String tofile) async {
       await Permission.microphone.request();
-      if (!File(tofile).parent.existsSync()) {
-        await File(tofile).parent.create(recursive: true);
+      final parentDir = File(tofile).parent;
+      if (parentDir != null && !parentDir.existsSync()) {
+        await parentDir.create(recursive: true);
       }
       await _audioRecorder.startRecorder(toFile: tofile);
     }
 
-    // 录音按钮点击
     Future<void> onRecordPressed() async {
       if (!isRecording) {
         _audioRecorder.setSubscriptionDuration(Duration(milliseconds: 1000));
-        // 开始录音
         int idx = 1;
         while (File(
           '$recordDir${idx.toString().padLeft(4, '0')}.aac',
@@ -1505,7 +1550,6 @@ class _EditPageState extends State<EditPage> {
         });
       } else {
         var a = await _audioRecorder.stopRecorder();
-        // 停止录音
         if (a == null) {
           ScaffoldMessenger.of(
             context,
@@ -1516,234 +1560,201 @@ class _EditPageState extends State<EditPage> {
           currentRecordingPath = null;
           recordingDuration = Duration.zero;
         });
-        await loadAudioFiles();
+        await _loadAudioFiles(recordDir);
       }
     }
 
-    // 删除录音
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadAudioFiles(recordDir);
+    });
+
+    return Row(
+      children: [
+        ElevatedButton.icon(
+          icon: AnimatedSwitcher(
+            duration: Duration(milliseconds: 200),
+            transitionBuilder: (child, animation) {
+              return ScaleTransition(
+                scale: animation,
+                child: FadeTransition(opacity: animation, child: child),
+              );
+            },
+            child: Icon(
+              key: ValueKey<bool>(isRecording),
+              isRecording ? Icons.stop : Icons.mic,
+              color: isRecording ? Colors.white : Colors.deepPurple,
+            ),
+          ),
+          label: AnimatedDefaultTextStyle(
+            duration: Duration(milliseconds: 150),
+            style: TextStyle(
+              fontWeight: isRecording
+                  ? FontWeight.bold
+                  : FontWeight.normal,
+              color: isRecording ? Colors.white : Colors.deepPurple,
+            ),
+            child: Text(
+              isRecording
+                  ? '  ${recordingDuration.inMinutes.toString().padLeft(2, '0')}:${(recordingDuration.inSeconds % 60).toString().padLeft(2, '0')}   '
+                  : '点击开始',
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: isRecording
+                ? Colors.red[400]
+                : Colors.grey[200],
+            foregroundColor: isRecording
+                ? Colors.white
+                : Colors.deepPurple,
+            animationDuration: Duration(milliseconds: 200),
+          ),
+          onPressed: onRecordPressed,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _loadAudioFiles(String recordDir) async {
+    final dir = Directory(recordDir);
+    if (isRecording) {
+      return;
+    }
+    if (await dir.exists()) {
+      final files =
+          dir.listSync().where((f) => f.path.endsWith('.aac')).toList()
+            ..sort((a, b) => a.path.compareTo(b.path));
+      setState(() {
+        audioFiles = files;
+      });
+    } else {
+      await dir.create(recursive: true);
+    }
+  }
+
+  Widget _buildAudioFileList(BuildContext context) {
     Future<void> deleteAudio(int index) async {
-      await player.value?.stopPlayer();
+      await _audioPlayer.stopPlayer();
       await File(audioFiles[index].path).delete();
       setState(() {
         isPlaying = false;
         playingIndex = -1;
         currentPosition = Duration.zero;
       });
-      await loadAudioFiles();
+      final String recordDir =
+          '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/';
+      await _loadAudioFiles(recordDir);
     }
 
-    // 页面初始化时加载录音
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      loadAudioFiles();
-    });
+    if (audioFiles.isEmpty) return SizedBox.shrink();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.item == null ? '新建病历' : '编辑病历:${MedicalRecord['name']}',
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.save),
-            onPressed: () {
-              saveData();
-              quit();
-            },
-          ),
-          if (widget.item != null)
-            IconButton(
-              icon: Icon(Icons.delete),
-              onPressed: () {
-                widget.onDelete();
-                Navigator.pop(context);
-              },
-            ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(6),
-        child: Column(
-          children: [
-            // 顶部录音按钮
-            Row(
-              children: [
-                // 使用单独的AnimatedSwitcher只控制图标部分
-                ElevatedButton.icon(
-                  icon: AnimatedSwitcher(
-                    duration: Duration(milliseconds: 200),
-                    transitionBuilder: (child, animation) {
-                      return ScaleTransition(
-                        scale: animation,
-                        child: FadeTransition(opacity: animation, child: child),
-                      );
-                    },
-                    child: Icon(
-                      key: ValueKey<bool>(isRecording),
-                      isRecording ? Icons.stop : Icons.mic,
-                      color: isRecording ? Colors.white : Colors.deepPurple,
-                    ),
-                  ),
-                  label: AnimatedDefaultTextStyle(
-                    duration: Duration(milliseconds: 150),
-                    style: TextStyle(
-                      fontWeight: isRecording
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                      color: isRecording ? Colors.white : Colors.deepPurple,
-                    ),
-                    child: Text(
-                      isRecording
-                          ? '  ${recordingDuration.inMinutes.toString().padLeft(2, '0')}:${(recordingDuration.inSeconds % 60).toString().padLeft(2, '0')}   '
-                          : '点击开始',
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isRecording
-                        ? Colors.red[400]
-                        : Colors.grey[200],
-                    foregroundColor: isRecording
-                        ? Colors.white
-                        : Colors.deepPurple,
-                    animationDuration: Duration(milliseconds: 200), // 添加按钮内置动画
-                  ),
-                  onPressed: onRecordPressed,
-                ),
-              ],
-            ),
-            buildBasicInfo(),
-            buildZhusu(),
-            buildXianbingshi(),
-            ...jiwangshi,
-            ...gerenshi,
-            ...hunyushi,
-            ...jiazushi,
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: fucha,
-                ),
-              ),
-            ),
-
-            // 录音文件列表
-            if (audioFiles.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('录音列表', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ...List.generate(audioFiles.length, (index) {
-                      final file = audioFiles[index];
-                      final fileName = file.path
-                          .split(Platform.pathSeparator)
-                          .last;
-                      final isThisPlaying = playingIndex == index && isPlaying;
-                      return Card(
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: Icon(
-                                    isThisPlaying && !ispausing
-                                        ? Icons.pause
-                                        : Icons.play_arrow,
-                                  ),
-                                  onPressed: () {
-                                    if (isThisPlaying) {
-                                      if (ispausing) {
-                                        _audioPlayer.resumePlayer();
-                                        setState(() {
-                                          ispausing = false;
-                                        });
-                                      } else {
-                                        _audioPlayer.pausePlayer();
-                                        setState(() {
-                                          ispausing = true;
-                                        });
-                                      }
-                                    } else {
-                                      play(file, index);
-                                    }
-                                  },
-                                ),
-                                if (isThisPlaying)
-                                  IconButton(
-                                    onPressed: () {
-                                      _audioPlayer.stopPlayer();
-                                      setState(() {
-                                        ispausing = false;
-                                        isPlaying = false;
-                                        currentPosition = Duration.zero;
-                                        totalDuration = Duration.zero;
-                                      });
-                                    },
-                                    icon: Icon(Icons.stop),
-                                  ),
-                                Expanded(
-                                  child: Padding(
-                                    padding: EdgeInsets.all(8.0),
-                                    child: Text(fileName),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: Icon(Icons.delete),
-                                  onPressed: () => deleteAudio(index),
-                                ),
-                              ],
-                            ),
-                            if (isThisPlaying)
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Slider(
-                                      value: currentPosition.inMilliseconds
-                                          .toDouble(),
-                                      max:
-                                          totalDuration.inMilliseconds
-                                                  .toDouble() >
-                                              0
-                                          ? totalDuration.inMilliseconds
-                                                .toDouble()
-                                          : 1,
-                                      onChanged: (v) {
-                                        final newPosition = Duration(
-                                          milliseconds: v.toInt(),
-                                        );
-                                        _audioPlayer.seekToPlayer(newPosition);
-                                        setState(() {
-                                          currentPosition = newPosition;
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                  // 显示当前进度和总时长
-                                  Padding(
-                                    padding: const EdgeInsets.only(
-                                      left: 8.0,
-                                      right: 8.0,
-                                    ),
-                                    child: Text(
-                                      "${currentPosition.inMinutes.toString().padLeft(2, '0')}:${(currentPosition.inSeconds % 60).toString().padLeft(2, '0')} / ${totalDuration.inMinutes.toString().padLeft(2, '0')}:${(totalDuration.inSeconds % 60).toString().padLeft(2, '0')}",
-                                      style: TextStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                          ],
+    return Padding(
+      padding: const EdgeInsets.only(top: 24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('录音列表', style: TextStyle(fontWeight: FontWeight.bold)),
+          ...List.generate(audioFiles.length, (index) {
+            final file = audioFiles[index];
+            final fileName = file.path
+                .split(Platform.pathSeparator)
+                .last;
+            final isThisPlaying = playingIndex == index && isPlaying;
+            return Card(
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          isThisPlaying && !ispausing
+                              ? Icons.pause
+                              : Icons.play_arrow,
                         ),
-                      );
-                    }),
-                  ],
-                ),
+                        onPressed: () {
+                          if (isThisPlaying) {
+                            if (ispausing) {
+                              _audioPlayer.resumePlayer();
+                              setState(() {
+                                ispausing = false;
+                              });
+                            } else {
+                              _audioPlayer.pausePlayer();
+                              setState(() {
+                                ispausing = true;
+                              });
+                            }
+                          } else {
+                            play(file, index);
+                          }
+                        },
+                      ),
+                      if (isThisPlaying)
+                        IconButton(
+                          onPressed: () {
+                            _audioPlayer.stopPlayer();
+                            setState(() {
+                              ispausing = false;
+                              isPlaying = false;
+                              currentPosition = Duration.zero;
+                              totalDuration = Duration.zero;
+                            });
+                          },
+                          icon: Icon(Icons.stop),
+                        ),
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: Text(fileName),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.delete),
+                        onPressed: () => deleteAudio(index),
+                      ),
+                    ],
+                  ),
+                  if (isThisPlaying)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Slider(
+                            value: currentPosition.inMilliseconds
+                                .toDouble(),
+                            max:
+                                totalDuration.inMilliseconds
+                                        .toDouble() >
+                                    0
+                                ? totalDuration.inMilliseconds
+                                      .toDouble()
+                                : 1,
+                            onChanged: (v) {
+                              final newPosition = Duration(
+                                milliseconds: v.toInt(),
+                              );
+                              _audioPlayer.seekToPlayer(newPosition);
+                              setState(() {
+                                currentPosition = newPosition;
+                              });
+                            },
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            left: 8.0,
+                            right: 8.0,
+                          ),
+                          child: Text(
+                            "${currentPosition.inMinutes.toString().padLeft(2, '0')}:${(currentPosition.inSeconds % 60).toString().padLeft(2, '0')} / ${totalDuration.inMinutes.toString().padLeft(2, '0')}:${(totalDuration.inSeconds % 60).toString().padLeft(2, '0')}",
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
               ),
-            // 录音文件列表结束
-            SizedBox(height: 24),
-          ],
-        ),
+            );
+          }),
+        ],
       ),
     );
   }

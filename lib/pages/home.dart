@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:medicalmanager/pages/MedicalRecord.dart';
 import 'package:medicalmanager/pages/AI.dart';
 import 'package:medicalmanager/pages/Settings.dart';
-import 'package:medicalmanager/models/settings_model.dart';
-import 'dart:io' show Platform;
-import 'package:permission_handler/permission_handler.dart';
 
 class AllMHpage extends StatefulWidget {
-  const AllMHpage({Key? key}) : super(key: key);
+  const AllMHpage({super.key});
 
   @override
   State<AllMHpage> createState() => _AllMHpageState();
