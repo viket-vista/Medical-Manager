@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:medicalmanager/tools/JsonChange.dart';
 import 'dart:io';
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:crypto/crypto.dart';
 import 'package:provider/provider.dart';
@@ -9,6 +10,7 @@ import 'package:medicalmanager/models/settings_model.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'ShowPhotos.dart';
+import 'package:medicalmanager/tools/aitool.dart';
 
 const double _sectionSpacing = 24.0;
 const double _cardPadding = 16.0;
@@ -78,6 +80,10 @@ class _EditPageState extends State<EditPage> {
   late Duration currentPosition;
   late Duration totalDuration;
   late Duration recordingDuration;
+  late SettingsModel settings;
+  List<String> streamResponses = [];
+  String _displayText = '';
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -92,6 +98,19 @@ class _EditPageState extends State<EditPage> {
     name.text = MedicalRecord['name'];
     age.text = MedicalRecord['age'];
     zhusu.text = MedicalRecord['主诉'];
+
+    dabian.text = MedicalRecord['现病史']['一般情况']['大便'] == ''
+        ? '无异常'
+        : MedicalRecord['现病史']['一般情况']['大便'];
+    xiaobian.text = MedicalRecord['现病史']['一般情况']['小便'] == ''
+        ? '无异常'
+        : MedicalRecord['现病史']['一般情况']['小便'];
+    shuimian.text = MedicalRecord['现病史']['一般情况']['精神'] == ''
+        ? '无异常'
+        : MedicalRecord['现病史']['一般情况']['精神'];
+    tizhong.text = MedicalRecord['现病史']['一般情况']['体重'] == ''
+        ? '无异常'
+        : MedicalRecord['现病史']['一般情况']['体重'];
     // 初始化家族史 controller
     _jiashuFumuController = TextEditingController(
       text: MedicalRecord['家族史']?['父母、兄弟姐妹'] ?? '',
@@ -126,6 +145,7 @@ class _EditPageState extends State<EditPage> {
     totalDuration = Duration.zero;
     recordingDuration = Duration.zero;
     ispausing = false;
+    settings = Provider.of<SettingsModel>(context, listen: false);
   }
 
   @override
@@ -180,19 +200,21 @@ class _EditPageState extends State<EditPage> {
     Navigator.pop(context);
   }
 
-  Widget buildExpandTextEdit(var controller, String text, var onChanged) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(labelText: text),
-      onChanged: onChanged,
-    );
-  }
-
+  /// 构建显示基本信息部分的组件。
+  ///
+  /// 返回一个包含用于编辑或查看实体（如患者、用户等）基本信息的 UI 元素的 [Widget]。
+  /// 可根据需求自定义该组件的内容，以适配基本信息部分所需的字段和布局。
+  /// Builds the widget that displays the basic information section.
+  ///
+  /// Returns a [Widget] containing the UI elements for editing or viewing
+  /// the basic information of the entity (e.g., patient, user, etc.).
+  /// Customize the contents of this widget to match the required fields
+  /// and layout for the basic information section.
   Widget buildBasicInfo() {
-    Widget NAME = buildExpandTextEdit(
-      name,
-      '姓名',
-      (value) => MedicalRecord['name'] = value,
+    Widget NAME = TextField(
+      controller: name,
+      decoration: InputDecoration(labelText: '姓名'),
+      onChanged: (value) => MedicalRecord['name'] = value,
     );
     final List<String> items = ['男', '女', '其他', '未知'];
     DropdownButton dp = DropdownButton<String>(
@@ -210,10 +232,10 @@ class _EditPageState extends State<EditPage> {
         return DropdownMenuItem<String>(value: value, child: Text(value));
       }).toList(),
     );
-    Widget AGE = buildExpandTextEdit(
-      age,
-      '年龄',
-      (value) => MedicalRecord['age'] = value,
+    Widget AGE = TextField(
+      controller: age,
+      decoration: InputDecoration(labelText: '年龄'),
+      onChanged: (value) => MedicalRecord['age'] = value,
     );
     return Card(
       child: Padding(
@@ -248,10 +270,10 @@ class _EditPageState extends State<EditPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Flexible(
-              child: buildExpandTextEdit(
-                zhusu,
-                '主诉',
-                (value) => MedicalRecord['主诉'] = value,
+              child: TextField(
+                controller: zhusu,
+                decoration: InputDecoration(label: Text('主诉')),
+                onChanged: (value) => MedicalRecord['主诉'] = value,
               ),
             ),
           ],
@@ -261,11 +283,6 @@ class _EditPageState extends State<EditPage> {
   }
 
   Widget buildXianbingshi() {
-    dabian.text = MedicalRecord['现病史']['一般情况']['大便'];
-    xiaobian.text = MedicalRecord['现病史']['一般情况']['小便'];
-    shuimian.text = MedicalRecord['现病史']['一般情况']['精神'];
-    tizhong.text = MedicalRecord['现病史']['一般情况']['体重'];
-
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
@@ -304,43 +321,43 @@ class _EditPageState extends State<EditPage> {
                 Divider(),
                 Padding(
                   padding: EdgeInsets.all(_inputPadding),
-                  child: buildExpandTextEdit(dabian, '大便', (value) {
-                    MedicalRecord = JsonChange(
-                      ["现病史", '一般情况', '大便'],
-                      MedicalRecord,
-                      value == '' ? '无异常' : value,
-                    );
-                  }),
+                  child: TextField(
+                    controller: dabian,
+                    decoration: InputDecoration(labelText: '大便'),
+                    onChanged: (value) {
+                      MedicalRecord['现病史']['一般情况']['大便'] = value;
+                    },
+                  ),
                 ),
                 Padding(
                   padding: EdgeInsets.all(_inputPadding),
-                  child: buildExpandTextEdit(xiaobian, '小便', (value) {
-                    MedicalRecord = JsonChange(
-                      ["现病史", '一般情况', '小便'],
-                      MedicalRecord,
-                      value == '' ? '无异常' : value,
-                    );
-                  }),
+                  child: TextField(
+                    controller: xiaobian,
+                    decoration: InputDecoration(labelText: '小便'),
+                    onChanged: (value) {
+                      MedicalRecord['现病史']['一般情况']['小便'] = value;
+                    },
+                  ),
                 ),
                 Padding(
                   padding: EdgeInsets.all(_inputPadding),
-                  child: buildExpandTextEdit(shuimian, '精神', (value) {
-                    MedicalRecord = JsonChange(
-                      ["现病史", '一般情况', '精神'],
-                      MedicalRecord,
-                      value == '' ? '无异常' : value,
-                    );
-                  }),
+                  child: TextField(
+                    controller: shuimian,
+                    decoration: InputDecoration(labelText: '精神'),
+                    onChanged: (value) {
+                      MedicalRecord['现病史']['一般情况']['精神'] = value;
+                    },
+                  ),
                 ),
                 Padding(
                   padding: EdgeInsets.all(_inputPadding),
-                  child: buildExpandTextEdit(tizhong, '体重', (value) {
-                    MedicalRecord = JsonChange(
-                      ["现病史", '一般情况', '体重'],
-                      MedicalRecord,
-                      value == '' ? '无异常' : value,
-                    );
-                  }),
+                  child: TextField(
+                    controller: tizhong,
+                    decoration: InputDecoration(labelText: '体重'),
+                    onChanged: (value) {
+                      MedicalRecord['现病史']['一般情况']['体重'] = value;
+                    },
+                  ),
                 ),
               ],
             ),
@@ -1526,97 +1543,113 @@ class _EditPageState extends State<EditPage> {
     );
   }
 
+  Future<void> onRecordPressed() async {
+    final String recordDir =
+        '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/入院记录/';
+    if (!isRecording) {
+      _audioRecorder.setSubscriptionDuration(Duration(milliseconds: 1000));
+      int idx = 1;
+      while (File(
+        '$recordDir${idx.toString().padLeft(4, '0')}.aac',
+      ).existsSync()) {
+        idx++;
+      }
+      currentRecordingPath = '$recordDir${idx.toString().padLeft(4, '0')}.aac';
+      await openTheRecorder(currentRecordingPath!);
+      setState(() {
+        isRecording = true;
+      });
+      _audioRecorder.onProgress!.listen((event) {
+        if (mounted) {
+          setState(() {
+            recordingDuration = event.duration;
+          });
+        }
+      });
+    } else {
+      var a = await _audioRecorder.stopRecorder();
+      if (a == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('录音失败')));
+      }
+      setState(() {
+        isRecording = false;
+        currentRecordingPath = null;
+        recordingDuration = Duration.zero;
+      });
+      await _loadAudioFiles(recordDir);
+    }
+  }
+
+  Future<void> openTheRecorder(String tofile) async {
+    await Permission.microphone.request();
+    final parentDir = File(tofile).parent;
+    if (parentDir != null && !parentDir.existsSync()) {
+      await parentDir.create(recursive: true);
+    }
+    await _audioRecorder.startRecorder(toFile: tofile);
+  }
+
   Widget _buildRecordButtonSection(BuildContext context) {
     final String recordDir =
         '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/入院记录/';
-    Future<void> openTheRecorder(String tofile) async {
-      await Permission.microphone.request();
-      final parentDir = File(tofile).parent;
-      if (parentDir != null && !parentDir.existsSync()) {
-        await parentDir.create(recursive: true);
-      }
-      await _audioRecorder.startRecorder(toFile: tofile);
-    }
-
-    Future<void> onRecordPressed() async {
-      if (!isRecording) {
-        _audioRecorder.setSubscriptionDuration(Duration(milliseconds: 1000));
-        int idx = 1;
-        while (File(
-          '$recordDir${idx.toString().padLeft(4, '0')}.aac',
-        ).existsSync()) {
-          idx++;
-        }
-        currentRecordingPath =
-            '$recordDir${idx.toString().padLeft(4, '0')}.aac';
-        await openTheRecorder(currentRecordingPath!);
-        setState(() {
-          isRecording = true;
-        });
-        _audioRecorder.onProgress!.listen((event) {
-          if (mounted) {
-            setState(() {
-              recordingDuration = event.duration;
-            });
-          }
-        });
-      } else {
-        var a = await _audioRecorder.stopRecorder();
-        if (a == null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('录音失败')));
-        }
-        setState(() {
-          isRecording = false;
-          currentRecordingPath = null;
-          recordingDuration = Duration.zero;
-        });
-        await _loadAudioFiles(recordDir);
-      }
-    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAudioFiles(recordDir);
     });
 
-    return Row(
-      children: [
-        ElevatedButton.icon(
-          icon: AnimatedSwitcher(
-            duration: Duration(milliseconds: 200),
-            transitionBuilder: (child, animation) {
-              return ScaleTransition(
-                scale: animation,
-                child: FadeTransition(opacity: animation, child: child),
-              );
-            },
-            child: Icon(
-              key: ValueKey<bool>(isRecording),
-              isRecording ? Icons.stop : Icons.mic,
-              color: isRecording ? Colors.white : Colors.deepPurple,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Row(
+          children: [
+            ElevatedButton.icon(
+              icon: AnimatedSwitcher(
+                duration: Duration(milliseconds: 200),
+                transitionBuilder: (child, animation) {
+                  return ScaleTransition(
+                    scale: animation,
+                    child: FadeTransition(opacity: animation, child: child),
+                  );
+                },
+                child: Icon(
+                  key: ValueKey<bool>(isRecording),
+                  isRecording ? Icons.stop : Icons.mic,
+                  color: isRecording ? Colors.white : Colors.deepPurple,
+                ),
+              ),
+              label: AnimatedDefaultTextStyle(
+                duration: Duration(milliseconds: 150),
+                style: TextStyle(
+                  fontWeight: isRecording ? FontWeight.bold : FontWeight.normal,
+                  color: isRecording ? Colors.white : Colors.deepPurple,
+                ),
+                child: Text(
+                  isRecording
+                      ? '  ${recordingDuration.inMinutes.toString().padLeft(2, '0')}:${(recordingDuration.inSeconds % 60).toString().padLeft(2, '0')}   '
+                      : '点击开始',
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isRecording ? Colors.red[400] : null,
+                foregroundColor: isRecording ? Colors.white : null,
+                animationDuration: Duration(milliseconds: 200),
+              ),
+              onPressed: onRecordPressed,
             ),
-          ),
-          label: AnimatedDefaultTextStyle(
-            duration: Duration(milliseconds: 150),
-            style: TextStyle(
-              fontWeight: isRecording ? FontWeight.bold : FontWeight.normal,
-              color: isRecording ? Colors.white : Colors.deepPurple,
+            SizedBox(width: 6),
+            ElevatedButton.icon(
+              icon: Icon(Icons.start),
+              onPressed: () {
+                _analyseJson();
+              },
+              label: const Text('根据表单生成入院记录'),
             ),
-            child: Text(
-              isRecording
-                  ? '  ${recordingDuration.inMinutes.toString().padLeft(2, '0')}:${(recordingDuration.inSeconds % 60).toString().padLeft(2, '0')}   '
-                  : '点击开始',
-            ),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: isRecording ? Colors.red[400] : Colors.grey[200],
-            foregroundColor: isRecording ? Colors.white : Colors.deepPurple,
-            animationDuration: Duration(milliseconds: 200),
-          ),
-          onPressed: onRecordPressed,
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -1756,6 +1789,169 @@ class _EditPageState extends State<EditPage> {
               ),
             );
           }),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _analyseJson() async {
+    DeepSeekApi _api = DeepSeekApi(apiKey: settings.apiKey);
+    Map temp = {...MedicalRecord}; // 创建副本避免修改原始数据
+
+    // 清理已有的AI输出
+    if (temp.containsKey('ai输出')) {
+      temp.remove('ai输出');
+    }
+
+    final messages = [
+      {
+        'role': 'system',
+        'content':
+            '请根据user给出的json数据生成一份入院记录，要求有主诉，现病史，既往史，个人史，婚育史，月经史（如果有）、家族史、摘要，并想出可能的鉴别诊断，写出支持和不支持点，注意如果json某个字段enabled是false则代表该字段可忽略', // 保持您的系统提示
+      },
+      {'role': 'user', 'content': jsonEncode(temp)},
+    ];
+
+    try {
+      final stream = await _api.chatCompletions(
+        messages: messages,
+        model: settings.model,
+        stream: true,
+      );
+
+      // 用于存储流式响应
+      StringBuffer responseBuffer = StringBuffer();
+      StreamSubscription? subscription;
+      bool isCompleted = false;
+
+      // 对话框中的控制器
+      TextEditingController controller = TextEditingController();
+      ScrollController scrollController = ScrollController();
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          // 开始监听流
+          subscription = stream.listen(
+            (data) {
+              try {
+                final jsonData = json.decode(data);
+                final content = jsonData['choices']?[0]['delta']?['content'];
+                if (content != null && content.isNotEmpty) {
+                  responseBuffer.write(content);
+                  controller.text = responseBuffer.toString();
+
+                  // 自动滚动到底部
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (scrollController.hasClients) {
+                      scrollController.animateTo(
+                        scrollController.position.maxScrollExtent,
+                        duration: const Duration(milliseconds: 100),
+                        curve: Curves.easeOut,
+                      );
+                    }
+                  });
+                }
+              } catch (e) {
+                debugPrint('Error parsing stream data: $e');
+              }
+            },
+            onDone: () {
+              isCompleted = true;
+              if (context.mounted) {
+                Navigator.of(context).pop(); // 关闭当前对话框
+                _showResultDialog(responseBuffer.toString()); // 显示结果对话框
+              }
+            },
+            onError: (error) {
+              debugPrint('Stream error: $error');
+              if (context.mounted) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('生成失败: $error')));
+                Navigator.of(context).pop();
+              }
+            },
+          );
+
+          return AlertDialog(
+            title: const Text('生成入院记录'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    maxLines: 10,
+                    minLines: 5,
+                    readOnly: true,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: '正在生成入院记录...',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 8),
+                  const Text('正在生成内容，请稍候...'),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  subscription?.cancel();
+                  Navigator.pop(context);
+                },
+                child: const Text('取消'),
+              ),
+            ],
+          );
+        },
+      ).then((_) => subscription?.cancel()); // 确保对话框关闭时取消订阅
+    } catch (e) {
+      debugPrint('API调用失败: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('请求失败: $e')));
+    }
+  }
+
+  // 显示最终结果的对话框
+  void _showResultDialog(String content) {
+    TextEditingController controller = TextEditingController(text: content);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('入院记录生成结果'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: TextField(
+            controller: controller,
+            maxLines: 15,
+            minLines: 10,
+            readOnly: true, // 保持只读
+            decoration: const InputDecoration(border: OutlineInputBorder()),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // 保存结果到状态
+              setState(() {
+                MedicalRecord['ai输出'] = controller.text;
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('应用'),
+          ),
         ],
       ),
     );

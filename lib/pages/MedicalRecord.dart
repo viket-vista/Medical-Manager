@@ -96,6 +96,7 @@ class PageState extends State<MedicalRecordPage> {
     final settings = Provider.of<SettingsModel>(context, listen: false);
     final directory = settings.docPath;
     File("$directory/data/${allMHEntry[index]["uuid"]}.json").delete();
+    Directory('$directory/data/${allMHEntry[index]['uuid']}/').delete();
     setState(() {
       allMHEntry.removeAt(index);
     });
