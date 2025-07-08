@@ -12,7 +12,7 @@ class ImageGalleryPage extends StatefulWidget {
   final String uuid;
   final Function(List<dynamic>) onreturn; // 明确类型
   final String name;
-  
+
   const ImageGalleryPage({
     super.key,
     required this.imageData,
@@ -34,7 +34,7 @@ class _ImageGalleryPageState extends State<ImageGalleryPage> {
   @override
   void initState() {
     super.initState();
-    _images = [...widget.imageData.map((e)=>e.toString())]; // 创建副本
+    _images = [...widget.imageData.map((e) => e.toString())]; // 创建副本
     _initializeDirectory(); // 异步初始化目录
   }
 
@@ -43,19 +43,19 @@ class _ImageGalleryPageState extends State<ImageGalleryPage> {
     try {
       final dirsetting = Provider.of<SettingsModel>(context, listen: false);
       final docPath = dirsetting.docPath;
-      
+
       // 确保UUID不为空
       if (widget.uuid.isEmpty) {
         throw Exception('UUID为空');
       }
-      
+
       final dirPath = path.join(docPath, 'data', widget.uuid, 'pictures');
       final dir = Directory(dirPath);
-      
+
       if (!await dir.exists()) {
         await dir.create(recursive: true);
       }
-      
+
       setState(() {
         _imageDirectory = dir;
         _isLoading = false;
@@ -66,44 +66,44 @@ class _ImageGalleryPageState extends State<ImageGalleryPage> {
         _isLoading = false;
         _hasError = true;
       });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('无法创建图片目录: ${e.toString()}')),
-      );
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('无法创建图片目录: ${e.toString()}')));
     }
   }
 
   // 添加图片
   Future<void> _addImage(ImageSource source) async {
     if (_imageDirectory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('图片目录未准备好，请稍后再试')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('图片目录未准备好，请稍后再试')));
       return;
     }
 
     final picker = ImagePicker();
     try {
       final pickedFile = await picker.pickImage(source: source);
-      
+
       if (pickedFile != null) {
         // 生成唯一文件名
         final timestamp = DateTime.now().millisecondsSinceEpoch;
         final ext = path.extension(pickedFile.path); // 保留原始扩展名
-        final filename = '${widget.uuid}_$timestamp$ext';
+        final filename = '$timestamp$ext';
         final destPath = path.join(_imageDirectory!.path, filename);
-        
+
         await File(pickedFile.path).copy(destPath);
-        
+
         setState(() {
           _images.add(filename); // 只存储文件名
         });
       }
     } catch (e) {
       print('添加图片失败: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('添加图片失败: ${e.toString()}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('添加图片失败: ${e.toString()}')));
     }
   }
 
@@ -134,15 +134,15 @@ class _ImageGalleryPageState extends State<ImageGalleryPage> {
         final filename = _images[index];
         final filePath = path.join(_imageDirectory!.path, filename);
         final file = File(filePath);
-        
+
         if (await file.exists()) {
           await file.delete();
         }
-        
+
         setState(() {
           _images.removeAt(index);
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('图片已删除'),
@@ -152,9 +152,9 @@ class _ImageGalleryPageState extends State<ImageGalleryPage> {
         );
       } catch (e) {
         print('删除图片失败: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('删除图片失败: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('删除图片失败: ${e.toString()}')));
       }
     }
   }
@@ -197,7 +197,7 @@ class _ImageGalleryPageState extends State<ImageGalleryPage> {
   // 查看大图（支持缩放）
   void _viewFullImage(int index) {
     if (_imageDirectory == null) return;
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -266,15 +266,15 @@ class _ImageGalleryPageState extends State<ImageGalleryPage> {
         ),
       );
     }
-    
+
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    
+
     if (_imageDirectory == null) {
       return const Center(child: Text('目录初始化失败'));
     }
-    
+
     return _images.isEmpty ? _buildEmptyState() : _buildImageGrid();
   }
 
@@ -316,18 +316,71 @@ class _ImageGalleryPageState extends State<ImageGalleryPage> {
       itemCount: _images.length,
       itemBuilder: (context, index) {
         return GestureDetector(
-          onTap: () => _viewFullImage(index),
+          onTap: () => _showImageActionDialog(context, index), // 修改这里
           child: _buildImageItem(index),
         );
       },
     );
   }
 
+  // 添加对话框方法（与之前相同但适配网格视图）
+  Future<void> _showImageActionDialog(BuildContext context, int index) async {
+    final imagePath = path.join(_imageDirectory!.path, _images[index]);
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("选择操作"),
+          content: Text("您要对这张图片执行什么操作？"),
+          actions: [
+            TextButton(
+              child: Text("解析", style: TextStyle(color: Colors.blue[300])),
+              onPressed: () => Navigator.pop(context, 'analyze'),
+            ),
+            TextButton(
+              child: Text("查看", style: TextStyle(color: Colors.green[300])),
+              onPressed: () => Navigator.pop(context, 'view'),
+            ),
+            TextButton(
+              child: Text("取消", style: TextStyle(color: Colors.grey)),
+              onPressed: () => Navigator.pop(context, 'cancel'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == 'analyze') {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return Dialog(
+            child: AlertDialog(
+              title: const Text('解析功能尚未实现'),
+              content: Text('imagePath: ${_images[index]}\n请稍后再试。'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('确定'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      //_analyzeImage(imagePath);
+    } else if (result == 'view') {
+      _viewFullImage(index); // 调用原有的全屏查看方法
+    }
+  }
+
   // 单个图片项
   Widget _buildImageItem(int index) {
     final filename = _images[index];
     final filePath = path.join(_imageDirectory!.path, filename);
-    
+
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -450,7 +503,7 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
       ),
       body: Stack(
         children: [
-          // 图片查看区域
+          // 图片查看区域（添加了GestureDetector）
           PageView.builder(
             controller: _pageController,
             itemCount: widget.images.length,
@@ -460,7 +513,10 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
               });
             },
             itemBuilder: (context, index) {
-              final imagePath = path.join(widget.imageDirectory.path, widget.images[index]);
+              final imagePath = path.join(
+                widget.imageDirectory.path,
+                widget.images[index],
+              );
               return InteractiveViewer(
                 panEnabled: true,
                 minScale: 0.1,
@@ -471,7 +527,11 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) {
                       return const Center(
-                        child: Icon(Icons.broken_image, color: Colors.grey, size: 50),
+                        child: Icon(
+                          Icons.broken_image,
+                          color: Colors.grey,
+                          size: 50,
+                        ),
                       );
                     },
                   ),
@@ -479,7 +539,7 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
               );
             },
           ),
-          
+
           // 图片索引指示器
           if (widget.images.length > 1)
             Positioned(
@@ -496,9 +556,9 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: _currentIndex == index 
-                          ? Colors.white 
-                          : Colors.white.withOpacity(0.5), // 修复这里
+                      color: _currentIndex == index
+                          ? Colors.white
+                          : Colors.white.withAlpha(128),
                     ),
                   ),
                 ),

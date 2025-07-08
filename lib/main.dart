@@ -23,9 +23,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home:  AllMHpage(),
-      theme: settings.darkMode 
-          ? ThemeData.dark() 
-          : ThemeData.light(),
+      theme: ThemeData.light(),
+      darkTheme: ThemeData.dark(),
+      themeMode: settings.autoDarkMode ? ThemeMode.system : settings.darkMode ? ThemeMode.dark : ThemeMode.light,
     );
   }
   
