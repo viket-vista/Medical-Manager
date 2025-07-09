@@ -1011,7 +1011,6 @@ class _EditPageState extends State<EditPage> {
     }
     final List<String> items = ['未婚', '已婚', '离异', '丧偶'];
     DropdownButton hy = DropdownButton<String>(
-      style: TextStyle(fontSize: 16, color: Colors.black),
       value: MedicalRecord['婚育史']['结婚']['statue'] == ""
           ? "未婚"
           : MedicalRecord['婚育史']['结婚']['statue'],
@@ -1028,6 +1027,9 @@ class _EditPageState extends State<EditPage> {
       }).toList(),
     );
     hunyushi.add(Text('婚育史'));
+    TextEditingController zn = TextEditingController(
+      text: MedicalRecord['婚育史']['生育']['子女健康情况'],
+    );
     hunyushi.add(
       Card(
         child: Padding(
@@ -1069,7 +1071,6 @@ class _EditPageState extends State<EditPage> {
                   Spacer(),
                   Switch(
                     value: MedicalRecord['婚育史']['生育']['enabled'],
-                    activeColor: Colors.green, // 明确区分开关状态
                     onChanged: (bool newValue) {
                       setState(() {
                         MedicalRecord['婚育史']['生育']['enabled'] = newValue;
@@ -1081,10 +1082,14 @@ class _EditPageState extends State<EditPage> {
                 ],
               ),
               if (MedicalRecord['婚育史']['生育']['enabled'])
-                Row(
-                  children: [
-                    Expanded(
-                      child: Padding(
+                SizedBox(
+                  height: 200,
+                  child: GridView.count(
+                    crossAxisCount: 3,
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    children: [
+                      Padding(
                         padding: const EdgeInsets.all(16),
                         child: TextField(
                           inputFormatters: [
@@ -1103,12 +1108,25 @@ class _EditPageState extends State<EditPage> {
                               MedicalRecord,
                               int.parse(value),
                             );
+                            if (MedicalRecord['sex'] != "男") {
+                              if (MedicalRecord['婚育史']['生育']['孕'] == null ||
+                                  MedicalRecord['婚育史']['生育']['产'] == null ||
+                                  MedicalRecord['婚育史']['生育']['孕'] == 0 ||
+                                  MedicalRecord['婚育史']['生育']['产'] == 0) {
+                                setState(() {
+                                  MedicalRecord['婚育史']['生育']['孕'] =
+                                      int.parse(value) +
+                                      MedicalRecord['婚育史']['生育']['生育女儿数'];
+                                  MedicalRecord['婚育史']['生育']['产'] =
+                                      int.parse(value) +
+                                      MedicalRecord['婚育史']['生育']['生育女儿数'];
+                                });
+                              }
+                            }
                           },
                         ),
                       ),
-                    ),
-                    Expanded(
-                      child: Padding(
+                      Padding(
                         padding: const EdgeInsets.all(16),
                         child: TextField(
                           inputFormatters: [
@@ -1127,31 +1145,65 @@ class _EditPageState extends State<EditPage> {
                               MedicalRecord,
                               int.parse(value),
                             );
+                            if ((MedicalRecord['婚育史']['生育']['孕'] == null &&
+                                    MedicalRecord['婚育史']['生育']['产'] == null) ||
+                                (MedicalRecord['婚育史']['生育']['孕'] == 0 &&
+                                    MedicalRecord['婚育史']['生育']['产'] == 0)) {
+                              setState(() {
+                                MedicalRecord['婚育史']['生育']['孕'] =
+                                    int.parse(value) +
+                                    MedicalRecord['婚育史']['生育']['生育儿子数'];
+                                MedicalRecord['婚育史']['生育']['产'] =
+                                    int.parse(value) +
+                                    MedicalRecord['婚育史']['生育']['生育儿子数'];
+                              });
+                            }
                           },
                         ),
                       ),
-                    ),
-                    Expanded(
-                      child: Padding(
+                      Padding(
                         padding: const EdgeInsets.all(16),
                         child: TextField(
-                          controller: TextEditingController(
-                            text: MedicalRecord['婚育史']['生育']['子女健康情况'],
-                          ),
+                          controller: zn,
+                          readOnly: true,
                           decoration: InputDecoration(labelText: '子女健康情况'),
-                          onChanged: (value) {
-                            MedicalRecord = JsonChange(
-                              ['婚育史', '生育', '子女健康情况'],
-                              MedicalRecord,
-                              value,
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                return AlertDialog(
+                                  title: Text('子女健康情况'),
+                                  content: SizedBox(
+                                    height: 200, // 设置较大的高度
+                                    child: TextField(
+                                      textAlignVertical: TextAlignVertical.top,
+                                      maxLines: null, // 允许多行
+                                      expands: true, // 尽可能扩展空间
+                                      controller: zn, // 使用相同的控制器
+                                      decoration: InputDecoration(
+                                        border: OutlineInputBorder(),
+                                        hintText: '请输入内容',
+                                      ),
+                                      onChanged: (value) {
+                                        MedicalRecord['婚育史']['生育']['子女健康情况'] =
+                                            value;
+                                      },
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: Text('确定'),
+                                    ),
+                                  ],
+                                );
+                              },
                             );
                           },
                         ),
                       ),
-                    ),
-                    if (MedicalRecord['sex'] != "男")
-                      Expanded(
-                        child: Padding(
+                      if (MedicalRecord['sex'] != "男")
+                        Padding(
                           padding: const EdgeInsets.all(16),
                           child: TextField(
                             inputFormatters: [
@@ -1172,10 +1224,8 @@ class _EditPageState extends State<EditPage> {
                             },
                           ),
                         ),
-                      ),
-                    if (MedicalRecord['sex'] != "男")
-                      Expanded(
-                        child: Padding(
+                      if (MedicalRecord['sex'] != "男")
+                        Padding(
                           padding: const EdgeInsets.all(16),
                           child: TextField(
                             inputFormatters: [
@@ -1196,8 +1246,8 @@ class _EditPageState extends State<EditPage> {
                             },
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
             ],
           ),
@@ -1807,7 +1857,7 @@ class _EditPageState extends State<EditPage> {
       {
         'role': 'system',
         'content':
-            '请根据user给出的json数据生成一份入院记录，要求有主诉，现病史，既往史，个人史，婚育史，月经史（如果有）、家族史、摘要，并想出可能的鉴别诊断，写出支持和不支持点，注意如果json某个字段enabled是false则代表该字段可忽略', // 保持您的系统提示
+            '请根据user给出的json数据生成一份入院记录，要求有且仅有主诉，现病史，既往史，个人史，婚育史，月经史（如果有）、家族史、摘要，并想出可能的鉴别诊断，写出支持和不支持点，注意如果json某个字段enabled是false则代表该字段可忽略，不得使用MarkdownMarkdown', // 保持您的系统提示
       },
       {'role': 'user', 'content': jsonEncode(temp)},
     ];
@@ -1820,97 +1870,31 @@ class _EditPageState extends State<EditPage> {
       );
 
       // 用于存储流式响应
-      StringBuffer responseBuffer = StringBuffer();
-      StreamSubscription? subscription;
-      bool isCompleted = false;
-
-      // 对话框中的控制器
-      TextEditingController controller = TextEditingController();
-      ScrollController scrollController = ScrollController();
-
+      // Navigator.push(
+      //   context,
+      //   MaterialPageRoute(
+      //     builder: (context) => AIDialog(
+      //       stream: stream,
+      //       onAccept: (result) {
+      //         setState(() {
+      //           MedicalRecord['ai输出'] = result;
+      //         });
+      //       },
+      //     ),
+      //   ),
+      // );
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) {
-          // 开始监听流
-          subscription = stream.listen(
-            (data) {
-              try {
-                final jsonData = json.decode(data);
-                final content = jsonData['choices']?[0]['delta']?['content'];
-                if (content != null && content.isNotEmpty) {
-                  responseBuffer.write(content);
-                  controller.text = responseBuffer.toString();
-
-                  // 自动滚动到底部
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (scrollController.hasClients) {
-                      scrollController.animateTo(
-                        scrollController.position.maxScrollExtent,
-                        duration: const Duration(milliseconds: 100),
-                        curve: Curves.easeOut,
-                      );
-                    }
-                  });
-                }
-              } catch (e) {
-                debugPrint('Error parsing stream data: $e');
-              }
-            },
-            onDone: () {
-              isCompleted = true;
-              if (context.mounted) {
-                Navigator.of(context).pop(); // 关闭当前对话框
-                _showResultDialog(responseBuffer.toString()); // 显示结果对话框
-              }
-            },
-            onError: (error) {
-              debugPrint('Stream error: $error');
-              if (context.mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('生成失败: $error')));
-                Navigator.of(context).pop();
-              }
-            },
-          );
-
-          return AlertDialog(
-            title: const Text('生成入院记录'),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: controller,
-                    maxLines: 10,
-                    minLines: 5,
-                    readOnly: true,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: '正在生成入院记录...',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 8),
-                  const Text('正在生成内容，请稍候...'),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  subscription?.cancel();
-                  Navigator.pop(context);
-                },
-                child: const Text('取消'),
-              ),
-            ],
-          );
-        },
-      ).then((_) => subscription?.cancel()); // 确保对话框关闭时取消订阅
+        builder: (context) => AIDialog(
+          stream: stream,
+          onAccept: (result) {
+            setState(() {
+              MedicalRecord['ai输出'] = result;
+            });
+          },
+        ),
+      );
     } catch (e) {
       debugPrint('API调用失败: $e');
       ScaffoldMessenger.of(
@@ -1918,42 +1902,134 @@ class _EditPageState extends State<EditPage> {
       ).showSnackBar(SnackBar(content: Text('请求失败: $e')));
     }
   }
+}
 
-  // 显示最终结果的对话框
-  void _showResultDialog(String content) {
-    TextEditingController controller = TextEditingController(text: content);
+class AIDialog extends StatefulWidget {
+  final Stream stream;
+  final Function(String) onAccept; // 可选的回调函数，当生成完成时调用
+  const AIDialog({super.key, required this.stream, required this.onAccept});
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('入院记录生成结果'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: TextField(
-            controller: controller,
-            maxLines: 15,
-            minLines: 10,
-            readOnly: true, // 保持只读
-            decoration: const InputDecoration(border: OutlineInputBorder()),
-          ),
+  @override
+  _AIDialogState createState() => _AIDialogState();
+}
+
+class _AIDialogState extends State<AIDialog> {
+  late TextEditingController _controller;
+
+  StringBuffer responseBuffer = StringBuffer();
+  late bool isCompleted; // 标记生成是否完成
+  StreamSubscription? subscription;
+  ScrollController scrollController = ScrollController();
+  @override
+  void initState() {
+    super.initState();
+    isCompleted = false;
+    _controller = TextEditingController();
+    subscription = widget.stream.listen(
+      (data) {
+        try {
+          final jsonData = json.decode(data);
+          final content = jsonData['choices']?[0]['delta']?['content'];
+          if (content != null && content.isNotEmpty) {
+            responseBuffer.write(content);
+            setState(() {
+              _controller.text = responseBuffer.toString();
+            });
+
+            // 自动滚动到底部
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (scrollController.hasClients) {
+                scrollController.animateTo(
+                  scrollController.position.maxScrollExtent,
+                  duration: const Duration(milliseconds: 100),
+                  curve: Curves.easeOut,
+                );
+              }
+            });
+          }
+        } catch (e) {
+          debugPrint('Error parsing stream data: $e');
+        }
+      },
+      onDone: () {
+        setState(() {
+          isCompleted = true;
+        });
+      },
+      onError: (error) {
+        debugPrint('Stream error: $error');
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('生成失败: $error')));
+          Navigator.of(context).pop();
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    subscription?.cancel();
+    scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('生成入院记录'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _controller,
+              maxLines: 10,
+              minLines: 10,
+              readOnly: !isCompleted,
+              enableInteractiveSelection: isCompleted,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: '正在生成入院记录...',
+              ),
+              scrollController: scrollController,
+            ),
+            isCompleted
+                ? const LinearProgressIndicator(value: 1)
+                : const LinearProgressIndicator(),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            subscription?.cancel();
+            Navigator.pop(context);
+          },
+          child: const Text('取消'),
+        ),
+        if (isCompleted)
           ElevatedButton(
             onPressed: () {
               // 保存结果到状态
-              setState(() {
-                MedicalRecord['ai输出'] = controller.text;
-              });
+              widget.onAccept(_controller.text);
               Navigator.pop(context);
             },
             child: const Text('应用'),
+          )
+        else
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                isCompleted = true; // 模拟生成完成
+                subscription?.cancel();
+              });
+            },
+            child: const Text('停止生成'),
           ),
-        ],
-      ),
-    );
+      ],
+    ); // 确保对话框关闭时取消订阅
   }
 }
