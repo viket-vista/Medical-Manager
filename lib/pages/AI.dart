@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
 import 'package:medicalmanager/tools/aitool.dart';
 import 'package:provider/provider.dart';
 import 'package:medicalmanager/models/settings_model.dart';

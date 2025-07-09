@@ -3,7 +3,8 @@ import 'package:medicalmanager/tools/JsonChange.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
-import 'package:flutter/services.dart' show FilteringTextInputFormatter;
+import 'package:flutter/services.dart'
+    show FilteringTextInputFormatter, Clipboard, ClipboardData;
 import 'package:crypto/crypto.dart';
 import 'package:provider/provider.dart';
 import 'package:medicalmanager/models/settings_model.dart';
@@ -82,7 +83,6 @@ class _EditPageState extends State<EditPage> {
   late Duration recordingDuration;
   late SettingsModel settings;
   List<String> streamResponses = [];
-  String _displayText = '';
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -1535,39 +1535,6 @@ class _EditPageState extends State<EditPage> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: _buildAppBar(),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(6),
-        child: Column(
-          children: [
-            _buildRecordButtonSection(context),
-            buildBasicInfo(),
-            buildZhusu(),
-            buildXianbingshi(),
-            ...jiwangshi,
-            ...gerenshi,
-            ...hunyushi,
-            ...jiazushi,
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(_cardPadding),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: fucha,
-                ),
-              ),
-            ),
-            _buildAudioFileList(context),
-            SizedBox(height: 24),
-          ],
-        ),
-      ),
-    );
-  }
-
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       title: Text(
@@ -1869,20 +1836,6 @@ class _EditPageState extends State<EditPage> {
         stream: true,
       );
 
-      // 用于存储流式响应
-      // Navigator.push(
-      //   context,
-      //   MaterialPageRoute(
-      //     builder: (context) => AIDialog(
-      //       stream: stream,
-      //       onAccept: (result) {
-      //         setState(() {
-      //           MedicalRecord['ai输出'] = result;
-      //         });
-      //       },
-      //     ),
-      //   ),
-      // );
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -1901,6 +1854,143 @@ class _EditPageState extends State<EditPage> {
         context,
       ).showSnackBar(SnackBar(content: Text('请求失败: $e')));
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: _buildAppBar(),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(6),
+        child: Column(
+          children: [
+            _buildRecordButtonSection(context),
+            buildBasicInfo(),
+            buildZhusu(),
+            buildXianbingshi(),
+            ...jiwangshi,
+            ...gerenshi,
+            ...hunyushi,
+            ...jiazushi,
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(_cardPadding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: fucha,
+                ),
+              ),
+            ),
+            _buildAudioFileList(context),
+            SizedBox(height: 24),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(_cardPadding),
+                child: Column(
+                  children: [
+                    Text(
+                      'AI生成的入院记录',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    if (MedicalRecord['ai输出'] != null)
+                      InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) {
+                                TextEditingController ryjlController =
+                                    TextEditingController(
+                                      text: MedicalRecord['ai输出'],
+                                    );
+                                return Scaffold(
+                                  appBar: AppBar(
+                                    title: Text('AI生成的入院记录'),
+                                    actions: [
+                                      IconButton(
+                                        icon: Icon(Icons.copy),
+                                        onPressed: () {
+                                          Clipboard.setData(
+                                            ClipboardData(
+                                              text: MedicalRecord['ai输出'],
+                                            ),
+                                          );
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(content: Text('已复制到剪贴板')),
+                                          );
+                                        },
+                                      ),
+                                      IconButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            MedicalRecord['ai输出'] =
+                                                ryjlController.text;
+                                          });
+                                          Navigator.pop(context);
+                                        },
+                                        icon: Icon(Icons.save),
+                                      ),
+                                    ],
+                                  ),
+                                  body: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      return ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                          minHeight: constraints.maxHeight,
+                                          maxHeight: constraints.maxHeight,
+                                        ),
+                                        child: SingleChildScrollView(
+                                          child: Card(
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(
+                                                8.0,
+                                              ),
+                                              child: TextField(
+                                                controller: ryjlController,
+                                                textAlignVertical:
+                                                    TextAlignVertical.top,
+                                                maxLines: null,
+                                                decoration: InputDecoration(
+                                                  border: OutlineInputBorder(),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
+                        child: AbsorbPointer(
+                          child: TextField(
+                            controller: TextEditingController(
+                              text: MedicalRecord['ai输出'],
+                            ),
+                            maxLines: 10,
+                            minLines: 10,
+                            readOnly: true,
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(),
+                              hintText: 'AI生成的入院记录',
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (MedicalRecord['ai输出'] == null) Text('请点击上方按钮生成入院记录'),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
