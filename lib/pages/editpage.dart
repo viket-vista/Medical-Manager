@@ -228,7 +228,7 @@ class _EditPageState extends State<EditPage> {
     );
     final List<String> items = ['男', '女', '其他', '未知'];
     DropdownButton dp = DropdownButton<String>(
-      style: TextStyle(fontSize: 16, color: Colors.black),
+      style: TextStyle(fontSize: 16),
       value: MedicalRecord["sex"] == "" ? "未知" : MedicalRecord["sex"],
       icon: Icon(Icons.arrow_drop_down),
       onChanged: (String? newValue) {
@@ -1542,8 +1542,8 @@ class _EditPageState extends State<EditPage> {
     } else {
       _audioPlayer.play(DeviceFileSource(file.path));
       _audioPlayer.onPositionChanged.listen((position) {
-      setState(() => currentPosition = position);
-    });
+        setState(() => currentPosition = position);
+      });
       _audioPlayer.onDurationChanged.listen((duration) {
         setState(() {
           totalDuration = duration;
@@ -1646,42 +1646,54 @@ class _EditPageState extends State<EditPage> {
         child: Row(
           children: [
             if (Platform.isAndroid || Platform.isIOS)
-              ElevatedButton.icon(
-                icon: AnimatedSwitcher(
-                  duration: Duration(milliseconds: 200),
-                  transitionBuilder: (child, animation) {
-                    return ScaleTransition(
-                      scale: animation,
-                      child: FadeTransition(opacity: animation, child: child),
-                    );
-                  },
-                  child: Icon(
-                    key: ValueKey<bool>(isRecording),
-                    isRecording ? Icons.stop : Icons.mic,
-                    color: isRecording ? Colors.white : Colors.deepPurple,
-                  ),
-                ),
-                label: AnimatedDefaultTextStyle(
-                  duration: Duration(milliseconds: 150),
-                  style: TextStyle(
-                    fontWeight: isRecording
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                    color: isRecording ? Colors.white : Colors.deepPurple,
-                  ),
-                  child: Text(
-                    isRecording
-                        ? '  ${recordingDuration.inMinutes.toString().padLeft(2, '0')}:${(recordingDuration.inSeconds % 60).toString().padLeft(2, '0')}   '
-                        : '点击开始',
-                  ),
-                ),
+              ElevatedButton(
+                onPressed: onRecordPressed,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isRecording ? Colors.red[400] : null,
                   foregroundColor: isRecording ? Colors.white : null,
                   animationDuration: Duration(milliseconds: 200),
                 ),
-                onPressed: onRecordPressed,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min, // 让子组件尽量紧凑
+                  children: [
+                    // 使用 AnimatedSwitcher 控制 Icon 动画
+                    AnimatedSwitcher(
+                      duration: Duration(milliseconds: 200),
+                      transitionBuilder: (child, animation) {
+                        return ScaleTransition(
+                          scale: animation,
+                          child: FadeTransition(
+                            opacity: animation,
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: Icon(
+                        key: ValueKey<bool>(isRecording),
+                        isRecording ? Icons.stop : Icons.mic,
+                        color: isRecording ? Colors.white : Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    SizedBox(width: 8), // 添加间距
+                    // 使用 AnimatedDefaultTextStyle 控制文字动画
+                    AnimatedDefaultTextStyle(
+                      duration: Duration(milliseconds: 150),
+                      style: TextStyle(
+                        fontWeight: isRecording
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: isRecording ? Colors.white : Theme.of(context).colorScheme.primary,
+                      ),
+                      child: Text(
+                        isRecording
+                            ? '  ${recordingDuration.inMinutes.toString().padLeft(2, '0')}:${(recordingDuration.inSeconds % 60).toString().padLeft(2, '0')}   '
+                            : '点击开始',
+                      ),
+                    ),
+                  ],
+                ),
               ),
+
             SizedBox(width: 6),
             ElevatedButton.icon(
               icon: Icon(Icons.start),

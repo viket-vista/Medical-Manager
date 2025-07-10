@@ -84,7 +84,7 @@ class _AIPageState extends State<AIPage> {
   Future<void> _startStreamRequest() async {
     // 取消之前的订阅（如果有）
     _streamSubscription?.cancel();
-    
+
     setState(() {
       _isStreaming = true;
       _streamResponses.clear();
@@ -98,7 +98,7 @@ class _AIPageState extends State<AIPage> {
       final messages = [
         {'role': 'user', 'content': _messageController.text},
       ];
-      
+
       // 获取流
       final stream = await _api.chatCompletions(
         messages: messages,
@@ -112,14 +112,15 @@ class _AIPageState extends State<AIPage> {
           try {
             final jsonData = json.decode(data);
             final content = jsonData['choices']?[0]['delta']?['content'];
-            final reasoningcontent = jsonData['choices']?[0]['delta']?['reasoning_content'];
+            final reasoningcontent =
+                jsonData['choices']?[0]['delta']?['reasoning_content'];
             if (reasoningcontent != null && reasoningcontent.isNotEmpty) {
               setState(() {
                 // 添加到响应列表
                 _streamResponses_reasoner.add(reasoningcontent);
                 // 更新显示文本（打字机效果）
                 _reasoningResponse += reasoningcontent;
-                
+
                 // 滚动到底部
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (_scrollController1.hasClients) {
@@ -137,7 +138,7 @@ class _AIPageState extends State<AIPage> {
                 _streamResponses.add(content);
                 // 更新显示文本（打字机效果）
                 _displayText += content;
-                
+
                 // 滚动到底部
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (_scrollController.hasClients) {
@@ -208,12 +209,11 @@ class _AIPageState extends State<AIPage> {
                 labelText: '消息内容',
                 border: OutlineInputBorder(),
                 filled: true,
-                fillColor: Colors.white,
               ),
               maxLines: 3,
             ),
             const SizedBox(height: 16),
-            
+
             // 按钮区域
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -221,40 +221,35 @@ class _AIPageState extends State<AIPage> {
                 ElevatedButton.icon(
                   icon: const Icon(Icons.send),
                   label: const Text('普通请求'),
-                  onPressed: _isLoading || _isStreaming ? null : _sendNormalRequest,
+                  onPressed: _isLoading || _isStreaming
+                      ? null
+                      : _sendNormalRequest,
                 ),
                 ElevatedButton.icon(
                   icon: const Icon(Icons.stream),
                   label: const Text('流式请求'),
-                  onPressed: _isLoading || _isStreaming ? null : _startStreamRequest,
+                  onPressed: _isLoading || _isStreaming
+                      ? null
+                      : _startStreamRequest,
                 ),
               ],
             ),
             const SizedBox(height: 24),
-            
+
             // 响应结果标题
             const Text(
               '响应结果:',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            
+
             // 响应内容显示区域
             Expanded(
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
                   border: Border.all(color: Colors.grey.shade300),
                   borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withAlpha(25),
-                      spreadRadius: 1,
-                      blurRadius: 3,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
                 ),
                 child: _buildResponseContent(),
               ),
@@ -278,7 +273,7 @@ class _AIPageState extends State<AIPage> {
         ),
       );
     }
-    
+
     if (_isStreaming) {
       return SingleChildScrollView(
         controller: _scrollController,
@@ -294,7 +289,11 @@ class _AIPageState extends State<AIPage> {
                 padding: EdgeInsets.only(top: 8.0),
                 child: Row(
                   children: [
-                    SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                     SizedBox(width: 8),
                     Text('接收中...', style: TextStyle(color: Colors.grey)),
                   ],
@@ -304,7 +303,7 @@ class _AIPageState extends State<AIPage> {
         ),
       );
     }
-    
+
     if (_response.isNotEmpty) {
       return SingleChildScrollView(
         controller: _scrollController,
@@ -314,7 +313,7 @@ class _AIPageState extends State<AIPage> {
         ),
       );
     }
-    
+
     if (_streamResponses.isNotEmpty) {
       return SingleChildScrollView(
         controller: _scrollController,
@@ -324,12 +323,7 @@ class _AIPageState extends State<AIPage> {
         ),
       );
     }
-    
-    return const Center(
-      child: Text(
-        '输入消息并点击按钮开始对话',
-        style: TextStyle(color: Colors.grey, fontSize: 16),
-      ),
-    );
+
+    return const Center(child: Text('输入消息并点击按钮开始对话'));
   }
 }

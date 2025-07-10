@@ -61,8 +61,6 @@ class _AllMHpageState extends State<AllMHpage> {
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: '设置'),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey,
         showUnselectedLabels: true,
         onTap: _onItemTapped,
       ),
