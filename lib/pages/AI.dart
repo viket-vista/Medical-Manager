@@ -17,12 +17,15 @@ class _AIPageState extends State<AIPage> {
   late DeepSeekApi _api;
   String _response = '';
   String _displayText = ''; // 用于实时显示流式响应的文本
+  String _reasoningResponse = ''; // 用于存储推理响应
   bool _isLoading = false;
   late bool _isStreaming;
   final List<String> _streamResponses = [];
+  final List<String> _streamResponses_reasoner = [];
   late SettingsModel settings;
   StreamSubscription? _streamSubscription; // 用于管理流订阅
   final ScrollController _scrollController = ScrollController(); // 用于自动滚动
+  final ScrollController _scrollController1 = ScrollController(); // 用于推理响应的自动滚动
 
   @override
   void initState() {
@@ -85,8 +88,10 @@ class _AIPageState extends State<AIPage> {
     setState(() {
       _isStreaming = true;
       _streamResponses.clear();
+      _streamResponses_reasoner.clear();
       _displayText = ''; // 重置显示文本
       _response = ''; // 清空普通响应
+      _reasoningResponse = ''; // 清空推理响应
     });
 
     try {
@@ -107,7 +112,26 @@ class _AIPageState extends State<AIPage> {
           try {
             final jsonData = json.decode(data);
             final content = jsonData['choices']?[0]['delta']?['content'];
-            if (content != null && content.isNotEmpty) {
+            final reasoningcontent = jsonData['choices']?[0]['delta']?['reasoning_content'];
+            if (reasoningcontent != null && reasoningcontent.isNotEmpty) {
+              setState(() {
+                // 添加到响应列表
+                _streamResponses_reasoner.add(reasoningcontent);
+                // 更新显示文本（打字机效果）
+                _reasoningResponse += reasoningcontent;
+                
+                // 滚动到底部
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_scrollController1.hasClients) {
+                    _scrollController1.animateTo(
+                      _scrollController1.position.maxScrollExtent,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOut,
+                    );
+                  }
+                });
+              });
+            } else if (content != null && content.isNotEmpty) {
               setState(() {
                 // 添加到响应列表
                 _streamResponses.add(content);

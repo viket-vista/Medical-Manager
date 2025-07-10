@@ -149,84 +149,194 @@ class PageState extends State<MedicalRecordPage> {
           ),
         ],
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(8),
-        itemCount: allMHEntry.isEmpty ? 1 : allMHEntry.length,
-        itemBuilder: (BuildContext context, int index) {
-          dynamic item;
-          if (allMHEntry.isNotEmpty) {
-            item = allMHEntry[index];
-            return GestureDetector(
-              onTap: () async {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => RecordPage(uuid: item['uuid'],name: item['name'],),
-                  ),
-                );
-              },
-              child: Card(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Text(
-                          "姓名:${item['name']} 年龄:${item['age']} 创建时间:${DateTime.fromMillisecondsSinceEpoch(item['created_at'])}",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    ),
-                    if (deletemode)
-                      IconButton(
-                        onPressed: () {
-                          deleteItem(index);
-                        },
-                        icon: Icon(Icons.delete_rounded),
-                      ),
-                    if (!deletemode)
-                      IconButton(
-                        onPressed: () async {
-                          Map<String, dynamic> mr = await loaddata1(
-                            item['uuid'],
-                          );
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => EditPage(
-                                medicalRecord1: mr,
-                                item: item,
-                                onSave: (updatedItem) {
-                                  updatedata(index, updatedItem);
-                                },
-                                onDelete: () {
-                                  deleteItem(index);
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                        icon: Icon(Icons.info),
-                      ),
-                  ],
-                ),
-              ),
-            );
-          } else {
-            return Center(
+      body: allMHEntry.isEmpty
+          ? const Center(
               child: Text(
                 "暂无记录",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-            );
-          }
-        },
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(8),
+              itemCount: allMHEntry.length,
+              itemBuilder: (BuildContext context, int index) {
+                final item = allMHEntry[index];
+                return MedicalRecordCard(
+                  item: item,
+                  deletemode: deletemode,
+                  onTap: () => _navigateToRecord(context, item),
+                  onLongPress: () => _showOptionsMenu(context, item, index),
+                  onEdit: () => _navigateToEdit(context, item, index),
+                  onDelete: () => deleteItem(index),
+                );
+              },
+            ),
+    );
+  }
+
+  void _navigateToRecord(BuildContext context, dynamic item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            RecordPage(uuid: item['uuid'], name: item['name']),
+      ),
+    );
+  }
+
+  void _showOptionsMenu(BuildContext context, dynamic item, int index) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.info),
+              title: const Text('详情'),
+              onTap: () {
+                Navigator.pop(context); // 关闭底部菜单
+                _showDetailDialog(context, item);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('编辑'),
+              onTap: () {
+                Navigator.pop(context); // 关闭底部菜单
+                _navigateToEdit(context, item, index);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete),
+              title: const Text('删除'),
+              onTap: () {
+                Navigator.pop(context); // 关闭底部菜单
+                deleteItem(index);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 显示详情对话框
+  void _showDetailDialog(BuildContext context, dynamic item) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("详情"),
+        content: SingleChildScrollView(
+
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("标识符: ${item['uuid']}"),
+              Text("姓名: ${item['name']}"),
+              Text("年龄: ${item['age']}"),
+              Text(
+                "创建时间: ${DateTime.fromMillisecondsSinceEpoch(item['created_at']).toLocal()}",
+              ),
+              Text(
+                '最后修改时间: ${DateTime.fromMillisecondsSinceEpoch(item['last_edit_at']).toLocal()}',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("关闭"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 导航到编辑页面
+  Future<void> _navigateToEdit(
+    BuildContext context,
+    dynamic item,
+    int index,
+  ) async {
+    try {
+      final mr = await loaddata1(item['uuid']);
+      if (!context.mounted) return;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EditPage(
+            medicalRecord1: mr,
+            item: item,
+            onSave: (updatedItem) => updatedata(index, updatedItem),
+            onDelete: () => deleteItem(index),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('加载数据失败: $e')));
+      }
+    }
+  }
+}
+
+class MedicalRecordCard extends StatelessWidget {
+  final dynamic item;
+  final bool deletemode;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const MedicalRecordCard({
+    super.key,
+    required this.item,
+    required this.deletemode,
+    required this.onTap,
+    required this.onLongPress,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      onSecondaryTap: onLongPress,
+      child: Card(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Text(
+                  "姓名:${item['name']} 年龄:${item['age']}",
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+            ),
+            if (deletemode)
+              IconButton(
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_rounded),
+              )
+            else
+              IconButton(onPressed: onEdit, icon: const Icon(Icons.info)),
+          ],
+        ),
       ),
     );
   }

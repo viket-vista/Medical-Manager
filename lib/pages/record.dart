@@ -14,10 +14,12 @@ class RecordPage extends StatefulWidget {
 class _RecordPageState extends State<RecordPage> {
   late Directory folder;
   List<FileSystemEntity> files = [];
+  late bool _deletemode;
 
   @override
   void initState() {
     super.initState();
+    _deletemode = false;
     _initFolder();
   }
 
@@ -61,7 +63,7 @@ class _RecordPageState extends State<RecordPage> {
     if (selected == null) return;
     final now = DateTime.now();
     final formattedTime =
-        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     final file = File('${folder.path}/$selected\_$formattedTime.json');
     await file.writeAsString('New file');
     _loadFiles();
@@ -94,7 +96,9 @@ class _RecordPageState extends State<RecordPage> {
           IconButton(
             icon: const Icon(Icons.delete),
             tooltip: '删除',
-            onPressed: _deleteFiles,
+            onPressed: (){setState(() {
+              _deletemode = !_deletemode;
+            });},
           ),
         ],
       ),
@@ -107,6 +111,17 @@ class _RecordPageState extends State<RecordPage> {
                 return ListTile(
                   title: Text(file.path.split(Platform.pathSeparator).last),
                   onTap: _openBlankPage,
+                  trailing: _deletemode
+                      ? IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () async {
+                            await file.delete();
+                            setState(() {
+                              files.removeAt(index);
+                            });
+                          },
+                        )
+                      : null,
                 );
               },
             ),

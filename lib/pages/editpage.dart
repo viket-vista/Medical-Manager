@@ -12,6 +12,8 @@ import 'package:flutter_sound/flutter_sound.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'ShowPhotos.dart';
 import 'package:medicalmanager/tools/aitool.dart';
+import 'package:uuid/uuid.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 const double _sectionSpacing = 24.0;
 const double _cardPadding = 16.0;
@@ -70,8 +72,9 @@ class _EditPageState extends State<EditPage> {
   late List<Widget> jiazushi;
   late List<Widget> fucha;
   late bool zzremovemode, fcremovemode;
-  final FlutterSoundRecorder _audioRecorder = FlutterSoundRecorder();
-  final FlutterSoundPlayer _audioPlayer = FlutterSoundPlayer();
+  late FlutterSoundRecorder _audioRecorder;
+
+  late dynamic _audioPlayer;
   late bool isRecording;
   String? currentRecordingPath;
   late List<FileSystemEntity> audioFiles;
@@ -93,7 +96,8 @@ class _EditPageState extends State<EditPage> {
     if (widget.item != null && widget.item!['uuid'] != null) {
       uuid = widget.item!['uuid'];
     } else {
-      uuid = sha256.convert([now]).toString();
+      final Uuid uuidGenerator = Uuid();
+      uuid = uuidGenerator.v1();
     }
     name.text = MedicalRecord['name'];
     age.text = MedicalRecord['age'];
@@ -136,9 +140,15 @@ class _EditPageState extends State<EditPage> {
     fucha = [];
     buildFucha();
     isRecording = false;
-    _audioRecorder.openRecorder(isBGService: true);
+    if (Platform.isAndroid || Platform.isIOS) {
+      _audioRecorder = FlutterSoundRecorder();
+      _audioRecorder.openRecorder(isBGService: true);
+      _audioPlayer = FlutterSoundPlayer();
+      _audioPlayer.openPlayer();
+    } else {
+      _audioPlayer = AudioPlayer();
+    }
     audioFiles = [];
-    _audioPlayer.openPlayer();
     playingIndex = -1;
     isPlaying = false;
     currentPosition = Duration.zero;
@@ -1509,25 +1519,38 @@ class _EditPageState extends State<EditPage> {
   }
 
   Future<void> play(FileSystemEntity file, int index) async {
-    await _audioPlayer.setSubscriptionDuration(Duration(milliseconds: 100));
-    await _audioPlayer.startPlayer(
-      fromURI: file.path,
-      codec: Codec.aacADTS,
-      whenFinished: () {
+    if (Platform.isIOS || Platform.isAndroid) {
+      await _audioPlayer.setSubscriptionDuration(Duration(milliseconds: 100));
+      await _audioPlayer.startPlayer(
+        fromURI: file.path,
+        codec: Codec.aacADTS,
+        whenFinished: () {
+          setState(() {
+            isPlaying = false;
+            playingIndex = -1;
+            currentPosition = Duration.zero;
+            ispausing = false;
+          });
+        },
+      );
+      _audioPlayer.onProgress!.listen((duration) {
+        totalDuration = duration.duration;
         setState(() {
-          isPlaying = false;
-          playingIndex = -1;
-          currentPosition = Duration.zero;
-          ispausing = false;
+          currentPosition = duration.position;
         });
-      },
-    );
-    _audioPlayer.onProgress!.listen((duration) {
-      totalDuration = duration.duration;
-      setState(() {
-        currentPosition = duration.position;
       });
+    } else {
+      _audioPlayer.play(DeviceFileSource(file.path));
+      _audioPlayer.onPositionChanged.listen((position) {
+      setState(() => currentPosition = position);
     });
+      _audioPlayer.onDurationChanged.listen((duration) {
+        setState(() {
+          totalDuration = duration;
+        });
+      });
+    }
+
     setState(() {
       isPlaying = true;
       playingIndex = index;
@@ -1622,40 +1645,43 @@ class _EditPageState extends State<EditPage> {
         padding: const EdgeInsets.all(8.0),
         child: Row(
           children: [
-            ElevatedButton.icon(
-              icon: AnimatedSwitcher(
-                duration: Duration(milliseconds: 200),
-                transitionBuilder: (child, animation) {
-                  return ScaleTransition(
-                    scale: animation,
-                    child: FadeTransition(opacity: animation, child: child),
-                  );
-                },
-                child: Icon(
-                  key: ValueKey<bool>(isRecording),
-                  isRecording ? Icons.stop : Icons.mic,
-                  color: isRecording ? Colors.white : Colors.deepPurple,
+            if (Platform.isAndroid || Platform.isIOS)
+              ElevatedButton.icon(
+                icon: AnimatedSwitcher(
+                  duration: Duration(milliseconds: 200),
+                  transitionBuilder: (child, animation) {
+                    return ScaleTransition(
+                      scale: animation,
+                      child: FadeTransition(opacity: animation, child: child),
+                    );
+                  },
+                  child: Icon(
+                    key: ValueKey<bool>(isRecording),
+                    isRecording ? Icons.stop : Icons.mic,
+                    color: isRecording ? Colors.white : Colors.deepPurple,
+                  ),
                 ),
-              ),
-              label: AnimatedDefaultTextStyle(
-                duration: Duration(milliseconds: 150),
-                style: TextStyle(
-                  fontWeight: isRecording ? FontWeight.bold : FontWeight.normal,
-                  color: isRecording ? Colors.white : Colors.deepPurple,
+                label: AnimatedDefaultTextStyle(
+                  duration: Duration(milliseconds: 150),
+                  style: TextStyle(
+                    fontWeight: isRecording
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    color: isRecording ? Colors.white : Colors.deepPurple,
+                  ),
+                  child: Text(
+                    isRecording
+                        ? '  ${recordingDuration.inMinutes.toString().padLeft(2, '0')}:${(recordingDuration.inSeconds % 60).toString().padLeft(2, '0')}   '
+                        : '点击开始',
+                  ),
                 ),
-                child: Text(
-                  isRecording
-                      ? '  ${recordingDuration.inMinutes.toString().padLeft(2, '0')}:${(recordingDuration.inSeconds % 60).toString().padLeft(2, '0')}   '
-                      : '点击开始',
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isRecording ? Colors.red[400] : null,
+                  foregroundColor: isRecording ? Colors.white : null,
+                  animationDuration: Duration(milliseconds: 200),
                 ),
+                onPressed: onRecordPressed,
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isRecording ? Colors.red[400] : null,
-                foregroundColor: isRecording ? Colors.white : null,
-                animationDuration: Duration(milliseconds: 200),
-              ),
-              onPressed: onRecordPressed,
-            ),
             SizedBox(width: 6),
             ElevatedButton.icon(
               icon: Icon(Icons.start),
@@ -1689,7 +1715,15 @@ class _EditPageState extends State<EditPage> {
 
   Widget _buildAudioFileList(BuildContext context) {
     Future<void> deleteAudio(int index) async {
-      await _audioPlayer.stopPlayer();
+      if (Platform.isAndroid || Platform.isIOS) {
+        if (playingIndex == index && isPlaying) {
+          await _audioPlayer.stopPlayer();
+        }
+      } else {
+        if (playingIndex == index && isPlaying) {
+          await _audioPlayer.stop();
+        }
+      }
       await File(audioFiles[index].path).delete();
       setState(() {
         isPlaying = false;
@@ -1729,7 +1763,11 @@ class _EditPageState extends State<EditPage> {
                           onPressed: () {
                             if (isThisPlaying) {
                               if (ispausing) {
-                                _audioPlayer.resumePlayer();
+                                if (Platform.isAndroid || Platform.isIOS) {
+                                  _audioPlayer.resumePlayer();
+                                } else {
+                                  _audioPlayer.resume();
+                                }
                                 setState(() {
                                   ispausing = false;
                                 });
@@ -1747,7 +1785,11 @@ class _EditPageState extends State<EditPage> {
                         if (isThisPlaying)
                           IconButton(
                             onPressed: () {
-                              _audioPlayer.stopPlayer();
+                              if (Platform.isAndroid || Platform.isIOS) {
+                                _audioPlayer.stopPlayer();
+                              } else {
+                                _audioPlayer.stop();
+                              }
                               setState(() {
                                 ispausing = false;
                                 isPlaying = false;
@@ -1782,7 +1824,11 @@ class _EditPageState extends State<EditPage> {
                                 final newPosition = Duration(
                                   milliseconds: v.toInt(),
                                 );
-                                _audioPlayer.seekToPlayer(newPosition);
+                                if (Platform.isAndroid || Platform.isIOS) {
+                                  _audioPlayer.seekToPlayer(newPosition);
+                                } else {
+                                  _audioPlayer.seek(newPosition);
+                                }
                                 setState(() {
                                   currentPosition = newPosition;
                                 });
