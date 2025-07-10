@@ -226,16 +226,21 @@ class _EditPageState extends State<EditPage> {
       decoration: InputDecoration(labelText: '姓名'),
       onChanged: (value) => MedicalRecord['name'] = value,
     );
-    final List<String> items = ['男', '女', '其他', '未知'];
+    const List<String> items = ['男', '女', '其他', '未知'];
+    const List<String> items1 = ['女', '其他', '未知'];
     DropdownButton dp = DropdownButton<String>(
-      style: TextStyle(fontSize: 16),
       value: MedicalRecord["sex"] == "" ? "未知" : MedicalRecord["sex"],
       icon: Icon(Icons.arrow_drop_down),
       onChanged: (String? newValue) {
         setState(() {
-          MedicalRecord["sex"] = newValue!;
-          hunyushi.clear();
-          buildhunyushi();
+          if (items1.contains(newValue!) ^
+              items1.contains(MedicalRecord['sex'])) {
+            MedicalRecord["sex"] = newValue;
+            hunyushi.clear();
+            buildhunyushi();
+          } else {
+            MedicalRecord["sex"] = newValue;
+          }
         });
       },
       items: items.map<DropdownMenuItem<String>>((String value) {
@@ -1671,7 +1676,9 @@ class _EditPageState extends State<EditPage> {
                       child: Icon(
                         key: ValueKey<bool>(isRecording),
                         isRecording ? Icons.stop : Icons.mic,
-                        color: isRecording ? Colors.white : Theme.of(context).colorScheme.primary,
+                        color: isRecording
+                            ? Colors.white
+                            : Theme.of(context).colorScheme.primary,
                       ),
                     ),
                     SizedBox(width: 8), // 添加间距
@@ -1682,7 +1689,9 @@ class _EditPageState extends State<EditPage> {
                         fontWeight: isRecording
                             ? FontWeight.bold
                             : FontWeight.normal,
-                        color: isRecording ? Colors.white : Theme.of(context).colorScheme.primary,
+                        color: isRecording
+                            ? Colors.white
+                            : Theme.of(context).colorScheme.primary,
                       ),
                       child: Text(
                         isRecording
