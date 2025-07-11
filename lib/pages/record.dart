@@ -1,11 +1,15 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import 'RecordEdit.dart';
+import 'package:provider/provider.dart';
+import 'package:medicalmanager/models/settings_model.dart';
 
 class RecordPage extends StatefulWidget {
   final String uuid;
   final String name;
-  const RecordPage({Key? key, required this.uuid,required this.name}) : super(key: key);
+  const RecordPage({Key? key, required this.uuid, required this.name})
+    : super(key: key);
 
   @override
   State<RecordPage> createState() => _RecordPageState();
@@ -24,8 +28,8 @@ class _RecordPageState extends State<RecordPage> {
   }
 
   Future<void> _initFolder() async {
-    final dir = await getApplicationDocumentsDirectory();
-    folder = Directory('${dir.path}/${widget.uuid}');
+    final dir = Provider.of<SettingsModel>(context, listen: false).docPath;
+    folder = Directory('$dir/${widget.uuid}');
     if (!(await folder.exists())) {
       await folder.create(recursive: true);
     }
@@ -40,7 +44,7 @@ class _RecordPageState extends State<RecordPage> {
         .whereType<File>()
         .where((f) => f.path.toLowerCase().endsWith('.json'))
         .toList();
-        
+
     setState(() {
       files = list;
     });
@@ -53,10 +57,12 @@ class _RecordPageState extends State<RecordPage> {
       builder: (context) => SimpleDialog(
         title: const Text('选择类型'),
         children: options
-            .map((opt) => SimpleDialogOption(
-                  child: Text(opt),
-                  onPressed: () => Navigator.pop(context, opt),
-                ))
+            .map(
+              (opt) => SimpleDialogOption(
+                child: Text(opt),
+                onPressed: () => Navigator.pop(context, opt),
+              ),
+            )
             .toList(),
       ),
     );
@@ -67,19 +73,6 @@ class _RecordPageState extends State<RecordPage> {
     final file = File('${folder.path}/$selected\_$formattedTime.json');
     await file.writeAsString('New file');
     _loadFiles();
-  }
-
-  void _deleteFiles() async {
-    for (var f in files) {
-      if (f is File) await f.delete();
-    }
-    _loadFiles();
-  }
-
-  void _openBlankPage() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const BlankPage()),
-    );
   }
 
   @override
@@ -96,9 +89,11 @@ class _RecordPageState extends State<RecordPage> {
           IconButton(
             icon: const Icon(Icons.delete),
             tooltip: '删除',
-            onPressed: (){setState(() {
-              _deletemode = !_deletemode;
-            });},
+            onPressed: () {
+              setState(() {
+                _deletemode = !_deletemode;
+              });
+            },
           ),
         ],
       ),
@@ -110,7 +105,7 @@ class _RecordPageState extends State<RecordPage> {
                 final file = files[index];
                 return ListTile(
                   title: Text(file.path.split(Platform.pathSeparator).last),
-                  onTap: _openBlankPage,
+                  onTap: () => openEditPage(file),
                   trailing: _deletemode
                       ? IconButton(
                           icon: const Icon(Icons.delete),
@@ -127,16 +122,11 @@ class _RecordPageState extends State<RecordPage> {
             ),
     );
   }
-}
 
-class BlankPage extends StatelessWidget {
-  const BlankPage({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('新页面')),
-      body: const Center(child: Text('空白页面')),
+  openEditPage(FileSystemEntity fil) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => RecordEdit(file: fil)),
     );
   }
 }

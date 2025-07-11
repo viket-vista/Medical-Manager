@@ -176,6 +176,12 @@ class _EditPageState extends State<EditPage> {
     for (var controllers in array1.entries) {
       controllers.key.dispose();
     }
+    if (Platform.isAndroid || Platform.isIOS) {
+      _audioPlayer.stopPlayer();
+      _audioRecorder.stopRecorder();
+    } else {
+      _audioPlayer.stop();
+    }
     super.dispose();
   }
 
@@ -1580,8 +1586,28 @@ class _EditPageState extends State<EditPage> {
           IconButton(
             icon: Icon(Icons.delete),
             onPressed: () {
-              widget.onDelete();
-              Navigator.pop(context);
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: Text('确认删除病历?'),
+                  content: Text('删除后无法恢复'),
+                  actions: [
+                    TextButton(
+                      child: Text('取消'),
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+                    TextButton(
+                      child: Text('确认'),
+                      onPressed: () {
+                        widget.onDelete();
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ],
+                ),
+              );
             },
           ),
       ],
@@ -1736,6 +1762,33 @@ class _EditPageState extends State<EditPage> {
 
   Widget _buildAudioFileList(BuildContext context) {
     Future<void> deleteAudio(int index) async {
+      bool delete = false;
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('确认删除'),
+            content: const Text('确定要删除这个录音文件吗？'),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  delete = true;
+                  Navigator.pop(context);
+                },
+                child: const Text('删除'),
+              ),
+              TextButton(
+                onPressed: () {
+                  delete = false;
+                  Navigator.pop(context);
+                },
+                child: const Text('取消'),
+              ),
+            ],
+          );
+        },
+      );
+      if (!delete) return;
       if (Platform.isAndroid || Platform.isIOS) {
         if (playingIndex == index && isPlaying) {
           await _audioPlayer.stopPlayer();
@@ -1754,6 +1807,18 @@ class _EditPageState extends State<EditPage> {
       final String recordDir =
           '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/入院记录/';
       await _loadAudioFiles(recordDir);
+    }
+
+    Future<void> renameAudio(int index, String newName) async {
+      if (newName.isNotEmpty) {
+        final newPath =
+            '${audioFiles[index].parent.path}/$newName${newName.endsWith('.aac') ? '' : '.aac'}';
+        await audioFiles[index].rename(newPath);
+        setState(() {
+          audioFiles[index] = File(newPath);
+        });
+        Navigator.pop(context);
+      }
     }
 
     if (audioFiles.isEmpty) return SizedBox.shrink();
@@ -1823,7 +1888,45 @@ class _EditPageState extends State<EditPage> {
                         Expanded(
                           child: Padding(
                             padding: EdgeInsets.all(8.0),
-                            child: Text(fileName),
+                            child: InkWell(
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    final TextEditingController textController =
+                                        TextEditingController(text: fileName);
+                                    return AlertDialog(
+                                      title: Text('修改文件名'),
+                                      content: TextField(
+                                        controller: textController,
+                                        decoration: InputDecoration(
+                                          hintText: '输入新的文件名',
+                                        ),
+                                      ),
+                                      actions: <Widget>[
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.of(context).pop();
+                                          },
+                                          child: Text('取消'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
+                                            renameAudio(
+                                              index,
+                                              textController.text,
+                                            );
+                                            Navigator.of(context).pop();
+                                          },
+                                          child: Text('确定'),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
+                              child: Text(fileName),
+                            ),
                           ),
                         ),
                         IconButton(
@@ -1841,6 +1944,20 @@ class _EditPageState extends State<EditPage> {
                               max: totalDuration.inMilliseconds.toDouble() > 0
                                   ? totalDuration.inMilliseconds.toDouble()
                                   : 1,
+                              onChangeStart: (value) {
+                                if (Platform.isAndroid || Platform.isIOS) {
+                                  _audioPlayer.pausePlayer();
+                                } else {
+                                  _audioPlayer.pause();
+                                }
+                              },
+                              onChangeEnd: (value) {
+                                if (Platform.isAndroid || Platform.isIOS) {
+                                  _audioPlayer.resumePlayer();
+                                } else {
+                                  _audioPlayer.resume();
+                                }
+                              },
                               onChanged: (v) {
                                 final newPosition = Duration(
                                   milliseconds: v.toInt(),
