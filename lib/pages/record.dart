@@ -106,6 +106,9 @@ class _RecordPageState extends State<RecordPage> {
                 return ListTile(
                   title: Text(file.path.split(Platform.pathSeparator).last),
                   onTap: () => openEditPage(file),
+                  onLongPress: () {
+                    showBottomSheet(context: context, builder: (BuildContext context){return Container(child: Text('tobefilled'),);});
+                  },
                   trailing: _deletemode
                       ? IconButton(
                           icon: const Icon(Icons.delete),
@@ -126,7 +129,7 @@ class _RecordPageState extends State<RecordPage> {
   openEditPage(FileSystemEntity fil) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => RecordEdit(file: fil)),
+      MaterialPageRoute(builder: (_) => RecordEdit(file: fil,name: widget.name,)),
     );
   }
 }

@@ -14,6 +14,7 @@ import 'ShowPhotos.dart';
 import 'package:medicalmanager/tools/aitool.dart';
 import 'package:uuid/uuid.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:medicalmanager/tools/Recorder.dart';
 
 const double _sectionSpacing = 24.0;
 const double _cardPadding = 16.0;
@@ -87,6 +88,7 @@ class _EditPageState extends State<EditPage> {
   late SettingsModel settings;
   List<String> streamResponses = [];
   final ScrollController _scrollController = ScrollController();
+  late final Recorder recorder;
 
   @override
   void initState() {
@@ -141,8 +143,14 @@ class _EditPageState extends State<EditPage> {
     buildFucha();
     isRecording = false;
     if (Platform.isAndroid || Platform.isIOS) {
-      _audioRecorder = FlutterSoundRecorder();
-      _audioRecorder.openRecorder(isBGService: true);
+      recorder = Recorder(
+        onProgress: (duration) {
+          setState(() {
+            recordingDuration = duration;
+          });
+        },
+      );
+      recorder.init();
       _audioPlayer = FlutterSoundPlayer();
       _audioPlayer.openPlayer();
     } else {
@@ -1614,54 +1622,6 @@ class _EditPageState extends State<EditPage> {
     );
   }
 
-  Future<void> onRecordPressed() async {
-    final String recordDir =
-        '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/入院记录/';
-    if (!isRecording) {
-      _audioRecorder.setSubscriptionDuration(Duration(milliseconds: 1000));
-      int idx = 1;
-      while (File(
-        '$recordDir${idx.toString().padLeft(4, '0')}.aac',
-      ).existsSync()) {
-        idx++;
-      }
-      currentRecordingPath = '$recordDir${idx.toString().padLeft(4, '0')}.aac';
-      await openTheRecorder(currentRecordingPath!);
-      setState(() {
-        isRecording = true;
-      });
-      _audioRecorder.onProgress!.listen((event) {
-        if (mounted) {
-          setState(() {
-            recordingDuration = event.duration;
-          });
-        }
-      });
-    } else {
-      var a = await _audioRecorder.stopRecorder();
-      if (a == null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('录音失败')));
-      }
-      setState(() {
-        isRecording = false;
-        currentRecordingPath = null;
-        recordingDuration = Duration.zero;
-      });
-      await _loadAudioFiles(recordDir);
-    }
-  }
-
-  Future<void> openTheRecorder(String tofile) async {
-    await Permission.microphone.request();
-    final parentDir = File(tofile).parent;
-    if (parentDir != null && !parentDir.existsSync()) {
-      await parentDir.create(recursive: true);
-    }
-    await _audioRecorder.startRecorder(toFile: tofile);
-  }
-
   Widget _buildRecordButtonSection(BuildContext context) {
     final String recordDir =
         '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/入院记录/';
@@ -1677,57 +1637,7 @@ class _EditPageState extends State<EditPage> {
         child: Row(
           children: [
             if (Platform.isAndroid || Platform.isIOS)
-              ElevatedButton(
-                onPressed: onRecordPressed,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isRecording ? Colors.red[400] : null,
-                  foregroundColor: isRecording ? Colors.white : null,
-                  animationDuration: Duration(milliseconds: 200),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min, // 让子组件尽量紧凑
-                  children: [
-                    // 使用 AnimatedSwitcher 控制 Icon 动画
-                    AnimatedSwitcher(
-                      duration: Duration(milliseconds: 200),
-                      transitionBuilder: (child, animation) {
-                        return ScaleTransition(
-                          scale: animation,
-                          child: FadeTransition(
-                            opacity: animation,
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: Icon(
-                        key: ValueKey<bool>(isRecording),
-                        isRecording ? Icons.stop : Icons.mic,
-                        color: isRecording
-                            ? Colors.white
-                            : Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                    SizedBox(width: 8), // 添加间距
-                    // 使用 AnimatedDefaultTextStyle 控制文字动画
-                    AnimatedDefaultTextStyle(
-                      duration: Duration(milliseconds: 150),
-                      style: TextStyle(
-                        fontWeight: isRecording
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        color: isRecording
-                            ? Colors.white
-                            : Theme.of(context).colorScheme.primary,
-                      ),
-                      child: Text(
-                        isRecording
-                            ? '  ${recordingDuration.inMinutes.toString().padLeft(2, '0')}:${(recordingDuration.inSeconds % 60).toString().padLeft(2, '0')}   '
-                            : '点击开始',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              recorder.buildRecorderButton(context, recordDir),
 
             SizedBox(width: 6),
             ElevatedButton.icon(
@@ -1772,8 +1682,25 @@ class _EditPageState extends State<EditPage> {
             actions: [
               TextButton(
                 onPressed: () async {
-                  delete = true;
                   Navigator.pop(context);
+                  if (Platform.isAndroid || Platform.isIOS) {
+                    if (playingIndex == index && isPlaying) {
+                      await _audioPlayer.stopPlayer();
+                    }
+                  } else {
+                    if (playingIndex == index && isPlaying) {
+                      await _audioPlayer.stop();
+                    }
+                  }
+                  final String recordDir =
+                      '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/入院记录/';
+                  audioFiles[index].deleteSync();
+                  setState(() {
+                    isPlaying = false;
+                    playingIndex = -1;
+                    currentPosition = Duration.zero;
+                  });
+                  await _loadAudioFiles(recordDir);
                 },
                 child: const Text('删除'),
               ),
@@ -1788,25 +1715,6 @@ class _EditPageState extends State<EditPage> {
           );
         },
       );
-      if (!delete) return;
-      if (Platform.isAndroid || Platform.isIOS) {
-        if (playingIndex == index && isPlaying) {
-          await _audioPlayer.stopPlayer();
-        }
-      } else {
-        if (playingIndex == index && isPlaying) {
-          await _audioPlayer.stop();
-        }
-      }
-      await File(audioFiles[index].path).delete();
-      setState(() {
-        isPlaying = false;
-        playingIndex = -1;
-        currentPosition = Duration.zero;
-      });
-      final String recordDir =
-          '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/入院记录/';
-      await _loadAudioFiles(recordDir);
     }
 
     Future<void> renameAudio(int index, String newName) async {
@@ -1817,7 +1725,6 @@ class _EditPageState extends State<EditPage> {
         setState(() {
           audioFiles[index] = File(newPath);
         });
-        Navigator.pop(context);
       }
     }
 
@@ -1885,50 +1792,49 @@ class _EditPageState extends State<EditPage> {
                             },
                             icon: Icon(Icons.stop),
                           ),
-                        Expanded(
-                          child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: InkWell(
-                              onTap: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    final TextEditingController textController =
-                                        TextEditingController(text: fileName);
-                                    return AlertDialog(
-                                      title: Text('修改文件名'),
-                                      content: TextField(
-                                        controller: textController,
-                                        decoration: InputDecoration(
-                                          hintText: '输入新的文件名',
-                                        ),
+                        Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: InkWell(
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  final TextEditingController textController =
+                                      TextEditingController(text: fileName);
+                                  return AlertDialog(
+                                    title: Text('修改文件名'),
+                                    content: TextField(
+                                      controller: textController,
+                                      decoration: InputDecoration(
+                                        hintText: '输入新的文件名',
                                       ),
-                                      actions: <Widget>[
-                                        TextButton(
-                                          onPressed: () {
-                                            Navigator.of(context).pop();
-                                          },
-                                          child: Text('取消'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () {
-                                            renameAudio(
-                                              index,
-                                              textController.text,
-                                            );
-                                            Navigator.of(context).pop();
-                                          },
-                                          child: Text('确定'),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
-                              },
-                              child: Text(fileName),
-                            ),
+                                    ),
+                                    actions: <Widget>[
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.of(context).pop();
+                                        },
+                                        child: Text('取消'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          renameAudio(
+                                            index,
+                                            textController.text,
+                                          );
+                                          Navigator.of(context).pop();
+                                        },
+                                        child: Text('确定'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                            child: Text(fileName),
                           ),
                         ),
+                        Spacer(),
                         IconButton(
                           icon: Icon(Icons.delete),
                           onPressed: () => deleteAudio(index),
@@ -2040,6 +1946,101 @@ class _EditPageState extends State<EditPage> {
     }
   }
 
+  Widget _buildAIOutputCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(_cardPadding),
+        child: Column(
+          children: [
+            Text('AI生成的入院记录', style: TextStyle(fontWeight: FontWeight.bold)),
+            if (MedicalRecord['ai输出'] != null)
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) {
+                        TextEditingController ryjlController =
+                            TextEditingController(text: MedicalRecord['ai输出']);
+                        return Scaffold(
+                          appBar: AppBar(
+                            title: Text('AI生成的入院记录'),
+                            actions: [
+                              IconButton(
+                                icon: Icon(Icons.copy),
+                                onPressed: () {
+                                  Clipboard.setData(
+                                    ClipboardData(text: MedicalRecord['ai输出']),
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('已复制到剪贴板')),
+                                  );
+                                },
+                              ),
+                              IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    MedicalRecord['ai输出'] = ryjlController.text;
+                                  });
+                                  Navigator.pop(context);
+                                },
+                                icon: Icon(Icons.save),
+                              ),
+                            ],
+                          ),
+                          body: LayoutBuilder(
+                            builder: (context, constraints) {
+                              return ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minHeight: constraints.maxHeight,
+                                  maxHeight: constraints.maxHeight,
+                                ),
+                                child: SingleChildScrollView(
+                                  child: Card(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: TextField(
+                                        controller: ryjlController,
+                                        textAlignVertical:
+                                            TextAlignVertical.top,
+                                        maxLines: null,
+                                        decoration: InputDecoration(
+                                          border: OutlineInputBorder(),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+                child: AbsorbPointer(
+                  child: TextField(
+                    controller: TextEditingController(
+                      text: MedicalRecord['ai输出'],
+                    ),
+                    maxLines: 10,
+                    minLines: 10,
+                    readOnly: true,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: 'AI生成的入院记录',
+                    ),
+                  ),
+                ),
+              ),
+            if (MedicalRecord['ai输出'] == null) Text('请点击上方按钮生成入院记录'),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -2067,110 +2068,7 @@ class _EditPageState extends State<EditPage> {
             ),
             _buildAudioFileList(context),
             SizedBox(height: 24),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(_cardPadding),
-                child: Column(
-                  children: [
-                    Text(
-                      'AI生成的入院记录',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    if (MedicalRecord['ai输出'] != null)
-                      InkWell(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) {
-                                TextEditingController ryjlController =
-                                    TextEditingController(
-                                      text: MedicalRecord['ai输出'],
-                                    );
-                                return Scaffold(
-                                  appBar: AppBar(
-                                    title: Text('AI生成的入院记录'),
-                                    actions: [
-                                      IconButton(
-                                        icon: Icon(Icons.copy),
-                                        onPressed: () {
-                                          Clipboard.setData(
-                                            ClipboardData(
-                                              text: MedicalRecord['ai输出'],
-                                            ),
-                                          );
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(content: Text('已复制到剪贴板')),
-                                          );
-                                        },
-                                      ),
-                                      IconButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            MedicalRecord['ai输出'] =
-                                                ryjlController.text;
-                                          });
-                                          Navigator.pop(context);
-                                        },
-                                        icon: Icon(Icons.save),
-                                      ),
-                                    ],
-                                  ),
-                                  body: LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      return ConstrainedBox(
-                                        constraints: BoxConstraints(
-                                          minHeight: constraints.maxHeight,
-                                          maxHeight: constraints.maxHeight,
-                                        ),
-                                        child: SingleChildScrollView(
-                                          child: Card(
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(
-                                                8.0,
-                                              ),
-                                              child: TextField(
-                                                controller: ryjlController,
-                                                textAlignVertical:
-                                                    TextAlignVertical.top,
-                                                maxLines: null,
-                                                decoration: InputDecoration(
-                                                  border: OutlineInputBorder(),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                );
-                              },
-                            ),
-                          );
-                        },
-                        child: AbsorbPointer(
-                          child: TextField(
-                            controller: TextEditingController(
-                              text: MedicalRecord['ai输出'],
-                            ),
-                            maxLines: 10,
-                            minLines: 10,
-                            readOnly: true,
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(),
-                              hintText: 'AI生成的入院记录',
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (MedicalRecord['ai输出'] == null) Text('请点击上方按钮生成入院记录'),
-                  ],
-                ),
-              ),
-            ),
+            _buildAIOutputCard(),
           ],
         ),
       ),
