@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:medicalmanager/models/settings_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:medicalmanager/tools/Recorder.dart';
+import 'package:medicalmanager/tools/recorder.dart';
 
 class RecordEdit extends StatefulWidget {
   final FileSystemEntity file;

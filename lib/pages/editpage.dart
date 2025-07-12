@@ -14,7 +14,7 @@ import 'ShowPhotos.dart';
 import 'package:medicalmanager/tools/aitool.dart';
 import 'package:uuid/uuid.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:medicalmanager/tools/Recorder.dart';
+import 'package:medicalmanager/tools/recorder.dart';
 
 const double _sectionSpacing = 24.0;
 const double _cardPadding = 16.0;
@@ -76,7 +76,6 @@ class _EditPageState extends State<EditPage> {
   late FlutterSoundRecorder _audioRecorder;
 
   late dynamic _audioPlayer;
-  late bool isRecording;
   String? currentRecordingPath;
   late List<FileSystemEntity> audioFiles;
   late int playingIndex;
@@ -141,7 +140,6 @@ class _EditPageState extends State<EditPage> {
     fcremovemode = false;
     fucha = [];
     buildFucha();
-    isRecording = false;
     if (Platform.isAndroid || Platform.isIOS) {
       recorder = Recorder(
         onProgress: (duration) {
@@ -1655,9 +1653,6 @@ class _EditPageState extends State<EditPage> {
 
   Future<void> _loadAudioFiles(String recordDir) async {
     final dir = Directory(recordDir);
-    if (isRecording) {
-      return;
-    }
     if (await dir.exists()) {
       final files =
           dir.listSync().where((f) => f.path.endsWith('.aac')).toList()
