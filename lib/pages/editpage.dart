@@ -15,6 +15,7 @@ import 'package:medicalmanager/tools/aitool.dart';
 import 'package:uuid/uuid.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:medicalmanager/tools/recorder.dart';
+import 'package:medicalmanager/tools/player.dart';
 
 const double _sectionSpacing = 24.0;
 const double _cardPadding = 16.0;
@@ -80,15 +81,13 @@ class _EditPageState extends State<EditPage> {
   late List<FileSystemEntity> audioFiles;
   late int playingIndex;
   late bool isPlaying;
-  late bool ispausing;
-  late Duration currentPosition;
-  late Duration totalDuration;
   late Duration recordingDuration;
   late SettingsModel settings;
   List<String> streamResponses = [];
   final ScrollController _scrollController = ScrollController();
   late final Recorder recorder;
-
+  String filName = '';
+  Player player = Player();
   @override
   void initState() {
     super.initState();
@@ -104,6 +103,7 @@ class _EditPageState extends State<EditPage> {
     age.text = MedicalRecord['age'];
     zhusu.text = MedicalRecord['主诉'];
 
+    player.init();
     dabian.text = MedicalRecord['现病史']['一般情况']['大便'] == ''
         ? '无异常'
         : MedicalRecord['现病史']['一般情况']['大便'];
@@ -149,18 +149,11 @@ class _EditPageState extends State<EditPage> {
         },
       );
       recorder.init();
-      _audioPlayer = FlutterSoundPlayer();
-      _audioPlayer.openPlayer();
-    } else {
-      _audioPlayer = AudioPlayer();
     }
     audioFiles = [];
     playingIndex = -1;
     isPlaying = false;
-    currentPosition = Duration.zero;
-    totalDuration = Duration.zero;
     recordingDuration = Duration.zero;
-    ispausing = false;
     settings = Provider.of<SettingsModel>(context, listen: false);
   }
 
@@ -1535,46 +1528,6 @@ class _EditPageState extends State<EditPage> {
     });
   }
 
-  Future<void> play(FileSystemEntity file, int index) async {
-    if (Platform.isIOS || Platform.isAndroid) {
-      await _audioPlayer.setSubscriptionDuration(Duration(milliseconds: 100));
-      await _audioPlayer.startPlayer(
-        fromURI: file.path,
-        codec: Codec.aacADTS,
-        whenFinished: () {
-          setState(() {
-            isPlaying = false;
-            playingIndex = -1;
-            currentPosition = Duration.zero;
-            ispausing = false;
-          });
-        },
-      );
-      _audioPlayer.onProgress!.listen((duration) {
-        totalDuration = duration.duration;
-        setState(() {
-          currentPosition = duration.position;
-        });
-      });
-    } else {
-      _audioPlayer.play(DeviceFileSource(file.path));
-      _audioPlayer.onPositionChanged.listen((position) {
-        setState(() => currentPosition = position);
-      });
-      _audioPlayer.onDurationChanged.listen((duration) {
-        setState(() {
-          totalDuration = duration;
-        });
-      });
-    }
-
-    setState(() {
-      isPlaying = true;
-      playingIndex = index;
-      ispausing = false;
-    });
-  }
-
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       title: Text(
@@ -1693,7 +1646,6 @@ class _EditPageState extends State<EditPage> {
                   setState(() {
                     isPlaying = false;
                     playingIndex = -1;
-                    currentPosition = Duration.zero;
                   });
                   await _loadAudioFiles(recordDir);
                 },
@@ -1734,7 +1686,6 @@ class _EditPageState extends State<EditPage> {
           ...List.generate(audioFiles.length, (index) {
             final file = audioFiles[index];
             final fileName = file.path.split(Platform.pathSeparator).last;
-            final isThisPlaying = playingIndex == index && isPlaying;
             return Card(
               child: Padding(
                 padding: const EdgeInsets.all(_cardPadding),
@@ -1743,50 +1694,15 @@ class _EditPageState extends State<EditPage> {
                     Row(
                       children: [
                         IconButton(
-                          icon: Icon(
-                            isThisPlaying && !ispausing
-                                ? Icons.pause
-                                : Icons.play_arrow,
-                          ),
+                          icon: Icon(Icons.play_arrow),
                           onPressed: () {
-                            if (isThisPlaying) {
-                              if (ispausing) {
-                                if (Platform.isAndroid || Platform.isIOS) {
-                                  _audioPlayer.resumePlayer();
-                                } else {
-                                  _audioPlayer.resume();
-                                }
-                                setState(() {
-                                  ispausing = false;
-                                });
-                              } else {
-                                _audioPlayer.pausePlayer();
-                                setState(() {
-                                  ispausing = true;
-                                });
-                              }
-                            } else {
-                              play(file, index);
-                            }
+                            setState(() {
+                              filName = file.path;
+                              isPlaying = true;
+                            });
                           },
                         ),
-                        if (isThisPlaying)
-                          IconButton(
-                            onPressed: () {
-                              if (Platform.isAndroid || Platform.isIOS) {
-                                _audioPlayer.stopPlayer();
-                              } else {
-                                _audioPlayer.stop();
-                              }
-                              setState(() {
-                                ispausing = false;
-                                isPlaying = false;
-                                currentPosition = Duration.zero;
-                                totalDuration = Duration.zero;
-                              });
-                            },
-                            icon: Icon(Icons.stop),
-                          ),
+
                         Padding(
                           padding: EdgeInsets.all(8.0),
                           child: InkWell(
@@ -1836,56 +1752,6 @@ class _EditPageState extends State<EditPage> {
                         ),
                       ],
                     ),
-                    if (isThisPlaying)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Slider(
-                              value: currentPosition.inMilliseconds.toDouble(),
-                              max: totalDuration.inMilliseconds.toDouble() > 0
-                                  ? totalDuration.inMilliseconds.toDouble()
-                                  : 1,
-                              onChangeStart: (value) {
-                                if (Platform.isAndroid || Platform.isIOS) {
-                                  _audioPlayer.pausePlayer();
-                                } else {
-                                  _audioPlayer.pause();
-                                }
-                              },
-                              onChangeEnd: (value) {
-                                if (Platform.isAndroid || Platform.isIOS) {
-                                  _audioPlayer.resumePlayer();
-                                } else {
-                                  _audioPlayer.resume();
-                                }
-                              },
-                              onChanged: (v) {
-                                final newPosition = Duration(
-                                  milliseconds: v.toInt(),
-                                );
-                                if (Platform.isAndroid || Platform.isIOS) {
-                                  _audioPlayer.seekToPlayer(newPosition);
-                                } else {
-                                  _audioPlayer.seek(newPosition);
-                                }
-                                setState(() {
-                                  currentPosition = newPosition;
-                                });
-                              },
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              left: 8.0,
-                              right: 8.0,
-                            ),
-                            child: Text(
-                              "${currentPosition.inMinutes.toString().padLeft(2, '0')}:${(currentPosition.inSeconds % 60).toString().padLeft(2, '0')} / ${totalDuration.inMinutes.toString().padLeft(2, '0')}:${(totalDuration.inSeconds % 60).toString().padLeft(2, '0')}",
-                              style: TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
                   ],
                 ),
               ),
@@ -2067,6 +1933,17 @@ class _EditPageState extends State<EditPage> {
           ],
         ),
       ),
+      bottomSheet: isPlaying
+          ? Material(
+              elevation: 10.0,
+              child: player.buildPlayer(filName, () {
+                setState(() {
+                  isPlaying = false;
+                  filName = '';
+                });
+              }),
+            )
+          : null,
     );
   }
 }

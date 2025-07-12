@@ -53,7 +53,12 @@ class _RecordPageState extends State<RecordEdit> {
         ],
       ),
       body: SingleChildScrollView(
-        child: Column(children: [_buildRecordButtonSection(context), _buildAudioFileList(context)]),
+        child: Column(
+          children: [
+            _buildRecordButtonSection(context),
+            _buildAudioFileList(context),
+          ],
+        ),
       ),
     );
   }
@@ -215,7 +220,7 @@ class _RecordPageState extends State<RecordEdit> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAudioFiles(recordDir);
     });
-    
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Padding(

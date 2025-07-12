@@ -1,126 +1,142 @@
-import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:path/path.dart' as path;
+
+enum PlayerState { start, stopped, playing, paused, ended }
 
 class Player {
-  final Function(Duration duration) ontotalDuration;
-  final Function(Duration duration) oncurrentPosition;
-  late Duration currentPosition;
-  late Duration totalDuration;
-  int playingIndex = -1;
-  bool isPlaying = false;
-  bool ispausing = false;
+  Duration currentPosition = Duration.zero;
+  Duration totalDuration = Duration.zero;
   late AudioPlayer _audioPlayer;
-  Player({required this.ontotalDuration, required this.oncurrentPosition});
+  PlayerState _state = PlayerState.stopped;
+
   void init() {
     _audioPlayer = AudioPlayer();
   }
 
-  void buildPlayer(context, String fileName) {
-    Scaffold.of(context).showBottomSheet(
-      (context) => StatefulBuilder(
-        builder: (context, setState) {
-          return Column(
+  void _setupListeners(Function? onPlayerComplete) {
+    _audioPlayer.onPositionChanged.listen((position) {
+      currentPosition = position;
+    });
+    _audioPlayer.onDurationChanged.listen((duration) {
+      totalDuration = duration;
+    });
+    _audioPlayer.onPlayerComplete.listen((_) {
+      _state = PlayerState.ended;
+      currentPosition = Duration.zero;
+    });
+  }
+
+  Future<void> _playAudio({
+    required String fileName,
+    Function? onPlayerComplete,
+  }) async {
+    _setupListeners(onPlayerComplete);
+    try {
+      await _audioPlayer.play(DeviceFileSource(fileName));
+      _state = PlayerState.playing;
+    } catch (e) {
+      debugPrint('播放错误: $e');
+    }
+  }
+
+  Widget buildPlayer(String fileName, Function onPlayerComplete) {
+    return StatefulBuilder(
+      builder: (context, setState) {
+        if (_state == PlayerState.stopped) {
+          _handlePlayPause(fileName, setState);
+        }
+        return Container(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Column(
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Slider(
-                          value: currentPosition.inMilliseconds.toDouble(),
-                          max: totalDuration.inMilliseconds.toDouble() > 0
-                              ? totalDuration.inMilliseconds.toDouble()
-                              : 1,
-                          onChangeStart: (value) {
-                            _audioPlayer.pause();
-                          },
-                          onChangeEnd: (value) {
-                            _audioPlayer.resume();
-                          },
-                          onChanged: (v) {
-                            final newPosition = Duration(
-                              milliseconds: v.toInt(),
-                            );
-                            _audioPlayer.seek(newPosition);
-                            setState(() {
-                              currentPosition = newPosition;
-                            });
-                          },
-                        ),
+                  Expanded(
+                    child: Slider(
+                      value: currentPosition.inMilliseconds.toDouble(),
+                      max: totalDuration.inMilliseconds.toDouble().clamp(
+                        1,
+                        double.infinity,
                       ),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8.0, right: 8.0),
-                        child: Text(
-                          "${currentPosition.inMinutes.toString().padLeft(2, '0')}:${(currentPosition.inSeconds % 60).toString().padLeft(2, '0')} / ${totalDuration.inMinutes.toString().padLeft(2, '0')}:${(totalDuration.inSeconds % 60).toString().padLeft(2, '0')}",
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ),
-                    ],
+                      onChangeStart: (value) {
+                        _audioPlayer.pause();
+                        setState(() => _state = PlayerState.paused);
+                      },
+                      onChanged: (value) {
+                        final newPos = Duration(milliseconds: value.toInt());
+                        _audioPlayer.seek(newPos);
+                        setState(() => currentPosition = newPos);
+                      },
+                      onChangeEnd: (value) {
+                        _audioPlayer.resume();
+                        setState(() => _state = PlayerState.playing);
+                      },
+                    ),
                   ),
-                  SizedBox(height: 4),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          isPlaying && !ispausing
-                              ? Icons.pause
-                              : Icons.play_arrow,
-                        ),
-                        onPressed: () {
-                          if (ispausing || !isPlaying) {
-                            _audioPlayer.pause();
-                            setState(() {
-                              isPlaying = true;
-                              ispausing = true;
-                            });
-                          } else {
-                            _audioPlayer.play(DeviceFileSource(fileName));
-                            _audioPlayer.onPositionChanged.listen((position) {
-                              setState(() => currentPosition = position);
-                            });
-                            _audioPlayer.onDurationChanged.listen((duration) {
-                              setState(() {
-                                totalDuration = duration;
-                              });
-                            });
-                            _audioPlayer.onPlayerComplete.listen((_){
-                              setState(() {
-                                isPlaying = false;
-                                ispausing = false;
-                                totalDuration = Duration.zero;
-                                currentPosition = Duration.zero;
-                              });
-                            });
-                            setState(() {
-                              ispausing = false;
-                              isPlaying = true;
-                            });
-                          }
-                        },
-                      ),
-                      if (isPlaying)
-                        IconButton(
-                          onPressed: () {
-                            _audioPlayer.stop();
-                            setState(() {
-                              ispausing = false;
-                              isPlaying = false;
-                              currentPosition = Duration.zero;
-                              totalDuration = Duration.zero;
-                            });
-                          },
-                          icon: Icon(Icons.stop),
-                        ),
-                    ],
+                  Text(
+                    '${_formatDuration(currentPosition)}/${_formatDuration(totalDuration)}',
                   ),
                 ],
               ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      _state == PlayerState.playing
+                          ? Icons.pause
+                          : Icons.play_arrow,
+                    ),
+                    onPressed: () => _handlePlayPause(fileName, setState),
+                  ),
+                  if (_state != PlayerState.stopped)
+                    IconButton(
+                      icon: Icon(Icons.stop),
+                      onPressed: () {
+                        _handleStop(setState);
+                        onPlayerComplete();
+                      },
+                    ),
+                  Spacer(),
+                  Text('正在播放：${path.basename(fileName)}'),
+                ],
+              ),
             ],
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
+  }
+
+  void _handlePlayPause(
+    String fileName,
+    void Function(void Function()) setState,
+  ) {
+    if (_state == PlayerState.playing) {
+      _audioPlayer.pause();
+      setState(() => _state = PlayerState.paused);
+    } else {
+      _playAudio(fileName: fileName);
+      setState(() => _state = PlayerState.playing);
+    }
+  }
+
+  void _handleStop(void Function(void Function()) setState) {
+    _audioPlayer.stop();
+    setState(() {
+      _state = PlayerState.stopped;
+      currentPosition = Duration.zero;
+    });
+  }
+
+  String _formatDuration(Duration d) {
+    return "${d.inMinutes.toString().padLeft(2, '0')}:"
+        "${(d.inSeconds % 60).toString().padLeft(2, '0')}";
+  }
+
+  void dispose() {
+    _audioPlayer.dispose();
   }
 }
