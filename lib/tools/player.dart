@@ -9,12 +9,15 @@ class Player {
   Duration totalDuration = Duration.zero;
   late AudioPlayer _audioPlayer;
   PlayerState _state = PlayerState.stopped;
+  Function _currentOnComplete = () {};
 
-  void init() {
+  void init(Function onPlayerComplete) {
     _audioPlayer = AudioPlayer();
+    _currentOnComplete = onPlayerComplete;
+    _setupListeners();
   }
 
-  void _setupListeners(Function? onPlayerComplete) {
+  void _setupListeners() {
     _audioPlayer.onPositionChanged.listen((position) {
       currentPosition = position;
     });
@@ -24,14 +27,18 @@ class Player {
     _audioPlayer.onPlayerComplete.listen((_) {
       _state = PlayerState.ended;
       currentPosition = Duration.zero;
+      _currentOnComplete();
     });
   }
 
-  Future<void> _playAudio({
-    required String fileName,
-    Function? onPlayerComplete,
-  }) async {
-    _setupListeners(onPlayerComplete);
+  Future<void> reset() async {
+    await _audioPlayer.stop();
+    _state = PlayerState.stopped;
+    totalDuration = Duration.zero;
+    currentPosition = Duration.zero;
+  }
+
+  Future<void> _playAudio({required String fileName}) async {
     try {
       await _audioPlayer.play(DeviceFileSource(fileName));
       _state = PlayerState.playing;
@@ -39,46 +46,57 @@ class Player {
       debugPrint('播放错误: $e');
     }
   }
-
-  Widget buildPlayer(String fileName, Function onPlayerComplete) {
+  Future<void> pause() async {
+    await _audioPlayer.pause();
+    _state = PlayerState.paused;
+  }
+  Future<void> resume() async {
+    await _audioPlayer.resume();
+    _state = PlayerState.playing;
+  }
+  Widget buildPlayer(String fileName) {
     return StatefulBuilder(
       builder: (context, setState) {
         if (_state == PlayerState.stopped) {
-          _handlePlayPause(fileName, setState);
+          _handlePlayPause(fileName: fileName, setState: setState);
         }
         return Container(
           padding: EdgeInsets.all(16),
+          height: 100,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Slider(
-                      value: currentPosition.inMilliseconds.toDouble(),
-                      max: totalDuration.inMilliseconds.toDouble().clamp(
-                        1,
-                        double.infinity,
+              SizedBox(
+                height: 25,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Slider(
+                        value: currentPosition.inMilliseconds.toDouble(),
+                        max: totalDuration.inMilliseconds.toDouble().clamp(
+                          1,
+                          double.infinity,
+                        ),
+                        onChangeStart: (value) {
+                          _audioPlayer.pause();
+                          setState(() => _state = PlayerState.paused);
+                        },
+                        onChanged: (value) {
+                          final newPos = Duration(milliseconds: value.toInt());
+                          _audioPlayer.seek(newPos);
+                          setState(() => currentPosition = newPos);
+                        },
+                        onChangeEnd: (value) {
+                          _audioPlayer.resume();
+                          setState(() => _state = PlayerState.playing);
+                        },
                       ),
-                      onChangeStart: (value) {
-                        _audioPlayer.pause();
-                        setState(() => _state = PlayerState.paused);
-                      },
-                      onChanged: (value) {
-                        final newPos = Duration(milliseconds: value.toInt());
-                        _audioPlayer.seek(newPos);
-                        setState(() => currentPosition = newPos);
-                      },
-                      onChangeEnd: (value) {
-                        _audioPlayer.resume();
-                        setState(() => _state = PlayerState.playing);
-                      },
                     ),
-                  ),
-                  Text(
-                    '${_formatDuration(currentPosition)}/${_formatDuration(totalDuration)}',
-                  ),
-                ],
+                    Text(
+                      '${_formatDuration(currentPosition)}/${_formatDuration(totalDuration)}',
+                    ),
+                  ],
+                ),
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -89,14 +107,16 @@ class Player {
                           ? Icons.pause
                           : Icons.play_arrow,
                     ),
-                    onPressed: () => _handlePlayPause(fileName, setState),
+                    onPressed: () {
+                      _handlePlayPause(fileName: fileName, setState: setState);
+                    },
                   ),
                   if (_state != PlayerState.stopped)
                     IconButton(
                       icon: Icon(Icons.stop),
                       onPressed: () {
                         _handleStop(setState);
-                        onPlayerComplete();
+                        _currentOnComplete();
                       },
                     ),
                   Spacer(),
@@ -110,10 +130,10 @@ class Player {
     );
   }
 
-  void _handlePlayPause(
-    String fileName,
-    void Function(void Function()) setState,
-  ) {
+  void _handlePlayPause({
+    required String fileName,
+    required void Function(void Function()) setState,
+  }) {
     if (_state == PlayerState.playing) {
       _audioPlayer.pause();
       setState(() => _state = PlayerState.paused);

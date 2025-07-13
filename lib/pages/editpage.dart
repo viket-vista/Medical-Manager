@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:medicalmanager/tools/JsonChange.dart';
 import 'dart:io';
@@ -8,14 +10,13 @@ import 'package:flutter/services.dart'
 import 'package:crypto/crypto.dart';
 import 'package:provider/provider.dart';
 import 'package:medicalmanager/models/settings_model.dart';
-import 'package:flutter_sound/flutter_sound.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'ShowPhotos.dart';
 import 'package:medicalmanager/tools/aitool.dart';
 import 'package:uuid/uuid.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:medicalmanager/tools/recorder.dart';
 import 'package:medicalmanager/tools/player.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 const double _sectionSpacing = 24.0;
 const double _cardPadding = 16.0;
@@ -40,7 +41,7 @@ class EditPage extends StatefulWidget {
   State<EditPage> createState() => _EditPageState();
 }
 
-class _EditPageState extends State<EditPage> {
+class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
   late int now;
   late String uuid;
   Map<dynamic, List<dynamic>> array = {};
@@ -74,9 +75,7 @@ class _EditPageState extends State<EditPage> {
   late List<Widget> jiazushi;
   late List<Widget> fucha;
   late bool zzremovemode, fcremovemode;
-  late FlutterSoundRecorder _audioRecorder;
-
-  late dynamic _audioPlayer;
+  bool freazeIsPlaying = false;
   String? currentRecordingPath;
   late List<FileSystemEntity> audioFiles;
   late int playingIndex;
@@ -102,8 +101,18 @@ class _EditPageState extends State<EditPage> {
     name.text = MedicalRecord['name'];
     age.text = MedicalRecord['age'];
     zhusu.text = MedicalRecord['主诉'];
-
-    player.init();
+    player.init(() {
+      setState(() {
+        isPlaying = false;
+        filName = '';
+      });
+      double newPosition = _scrollController.offset - 100;
+      _scrollController.animateTo(
+        newPosition,
+        duration: Duration(milliseconds: 200),
+        curve: Curves.ease,
+      );
+    });
     dabian.text = MedicalRecord['现病史']['一般情况']['大便'] == ''
         ? '无异常'
         : MedicalRecord['现病史']['一般情况']['大便'];
@@ -155,6 +164,22 @@ class _EditPageState extends State<EditPage> {
     isPlaying = false;
     recordingDuration = Duration.zero;
     settings = Provider.of<SettingsModel>(context, listen: false);
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (freazeIsPlaying) {
+        freazeIsPlaying = false;
+        player.resume();
+      }
+    } else if (state == AppLifecycleState.paused) {
+      if (isPlaying) {
+        freazeIsPlaying = isPlaying;
+        player.pause();
+      }
+    }
   }
 
   @override
@@ -176,11 +201,10 @@ class _EditPageState extends State<EditPage> {
       controllers.key.dispose();
     }
     if (Platform.isAndroid || Platform.isIOS) {
-      _audioPlayer.stopPlayer();
-      _audioRecorder.stopRecorder();
-    } else {
-      _audioPlayer.stop();
+      recorder.dispose();
     }
+    player.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -215,16 +239,6 @@ class _EditPageState extends State<EditPage> {
     Navigator.pop(context);
   }
 
-  /// 构建显示基本信息部分的组件。
-  ///
-  /// 返回一个包含用于编辑或查看实体（如患者、用户等）基本信息的 UI 元素的 [Widget]。
-  /// 可根据需求自定义该组件的内容，以适配基本信息部分所需的字段和布局。
-  /// Builds the widget that displays the basic information section.
-  ///
-  /// Returns a [Widget] containing the UI elements for editing or viewing
-  /// the basic information of the entity (e.g., patient, user, etc.).
-  /// Customize the contents of this widget to match the required fields
-  /// and layout for the basic information section.
   Widget buildBasicInfo() {
     Widget NAME = TextField(
       controller: name,
@@ -1620,7 +1634,6 @@ class _EditPageState extends State<EditPage> {
 
   Widget _buildAudioFileList(BuildContext context) {
     Future<void> deleteAudio(int index) async {
-      bool delete = false;
       showDialog(
         context: context,
         builder: (BuildContext context) {
@@ -1631,21 +1644,20 @@ class _EditPageState extends State<EditPage> {
               TextButton(
                 onPressed: () async {
                   Navigator.pop(context);
-                  if (Platform.isAndroid || Platform.isIOS) {
-                    if (playingIndex == index && isPlaying) {
-                      await _audioPlayer.stopPlayer();
-                    }
-                  } else {
-                    if (playingIndex == index && isPlaying) {
-                      await _audioPlayer.stop();
-                    }
-                  }
                   final String recordDir =
                       '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/入院记录/';
                   audioFiles[index].deleteSync();
                   setState(() {
                     isPlaying = false;
+                    WakelockPlus.disable();
+                    player.reset();
                     playingIndex = -1;
+                    double newPosition = _scrollController.offset - 100;
+                    _scrollController.animateTo(
+                      newPosition,
+                      duration: Duration(milliseconds: 200),
+                      curve: Curves.ease,
+                    );
                   });
                   await _loadAudioFiles(recordDir);
                 },
@@ -1653,7 +1665,6 @@ class _EditPageState extends State<EditPage> {
               ),
               TextButton(
                 onPressed: () {
-                  delete = false;
                   Navigator.pop(context);
                 },
                 child: const Text('取消'),
@@ -1696,10 +1707,24 @@ class _EditPageState extends State<EditPage> {
                         IconButton(
                           icon: Icon(Icons.play_arrow),
                           onPressed: () {
+                            bool temp = isPlaying;
                             setState(() {
                               filName = file.path;
                               isPlaying = true;
                             });
+                            WakelockPlus.disable();
+                            player.reset();
+                            if (!temp) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                double newPosition =
+                                    _scrollController.offset + 100;
+                                _scrollController.animateTo(
+                                  newPosition, // 使用 clamp 确保值在范围内
+                                  duration: Duration(milliseconds: 200),
+                                  curve: Curves.linear,
+                                );
+                              });
+                            }
                           },
                         ),
 
@@ -1902,47 +1927,44 @@ class _EditPageState extends State<EditPage> {
     );
   }
 
+  TextEditingController con = TextEditingController(text: '1');
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildAppBar(),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(6),
-        child: Column(
-          children: [
-            _buildRecordButtonSection(context),
-            buildBasicInfo(),
-            buildZhusu(),
-            buildXianbingshi(),
-            ...jiwangshi,
-            ...gerenshi,
-            ...hunyushi,
-            ...jiazushi,
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(_cardPadding),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: fucha,
+      body: Padding(
+        padding: EdgeInsets.only(bottom: isPlaying ? 100.0 : 0.0),
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          padding: EdgeInsets.all(6),
+          child: Column(
+            children: [
+              _buildRecordButtonSection(context),
+              buildBasicInfo(),
+              buildZhusu(),
+              buildXianbingshi(),
+              ...jiwangshi,
+              ...gerenshi,
+              ...hunyushi,
+              ...jiazushi,
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(_cardPadding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: fucha,
+                  ),
                 ),
               ),
-            ),
-            _buildAudioFileList(context),
-            SizedBox(height: 24),
-            _buildAIOutputCard(),
-          ],
+              _buildAudioFileList(context),
+              SizedBox(height: 24),
+              _buildAIOutputCard(),
+            ],
+          ),
         ),
       ),
       bottomSheet: isPlaying
-          ? Material(
-              elevation: 10.0,
-              child: player.buildPlayer(filName, () {
-                setState(() {
-                  isPlaying = false;
-                  filName = '';
-                });
-              }),
-            )
+          ? Material(elevation: 4.0, child: player.buildPlayer(filName))
           : null,
     );
   }

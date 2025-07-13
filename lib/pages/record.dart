@@ -70,7 +70,7 @@ class _RecordPageState extends State<RecordPage> {
     final now = DateTime.now();
     final formattedTime =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-    final file = File('${folder.path}/$selected\_$formattedTime.json');
+    final file = File('${folder.path}/${selected}_$formattedTime.json');
     await file.writeAsString('New file');
     _loadFiles();
   }
