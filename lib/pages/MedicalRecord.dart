@@ -208,6 +208,14 @@ class PageState extends State<MedicalRecordPage> {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('编辑元数据'),
+              onTap: () {
+                Navigator.pop(context); // 关闭底部菜单
+                _navigateToEditOrigin(context, item, index);
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.delete),
               title: const Text('删除'),
               onTap: () {
@@ -228,7 +236,6 @@ class PageState extends State<MedicalRecordPage> {
       builder: (context) => AlertDialog(
         title: const Text("详情"),
         content: SingleChildScrollView(
-
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -274,6 +281,78 @@ class PageState extends State<MedicalRecordPage> {
             onSave: (updatedItem) => updatedata(index, updatedItem),
             onDelete: () => deleteItem(index),
           ),
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('加载数据失败: $e')));
+      }
+    }
+  }
+
+  Future<void> _navigateToEditOrigin(
+    BuildContext context,
+    dynamic item,
+    int index,
+  ) async {
+    try {
+      final mr = await loaddata1(item['uuid']);
+      TextEditingController controller = TextEditingController(
+        text: json.encode(mr),
+      );
+      if (!context.mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) {
+            return Scaffold(
+              appBar: AppBar(
+                title: Text('编辑元数据${item["name"]}'),
+                actions: [
+                  IconButton(
+                    onPressed: () {
+                      final settings = Provider.of<SettingsModel>(
+                        context,
+                        listen: false,
+                      );
+                      final directory = settings.docPath;
+                      final file = File('$directory/data/${item['uuid']}.json');
+                      final jsonStr = controller.text;
+                      file.writeAsString(jsonStr);
+                    },
+                    icon: Icon(Icons.save),
+                  ),
+                ],
+              ),
+              body: LayoutBuilder(
+                builder: (context, constraints) {
+                  return ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                      maxHeight: constraints.maxHeight,
+                    ),
+                    child: SingleChildScrollView(
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: TextField(
+                            controller: controller,
+                            textAlignVertical: TextAlignVertical.top,
+                            maxLines: null,
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
         ),
       );
     } catch (e) {

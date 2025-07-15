@@ -17,6 +17,7 @@ import 'package:uuid/uuid.dart';
 import 'package:medicalmanager/tools/recorder.dart';
 import 'package:medicalmanager/tools/player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:intl/intl.dart';
 
 const double _sectionSpacing = 24.0;
 const double _cardPadding = 16.0;
@@ -58,7 +59,8 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
   late TextEditingController _jiashuFumuController;
   late TextEditingController _jiashuYichuanController;
   late TextEditingController _jiashuManxingController;
-  List<dynamic> Zhengzhuang = [];
+  List<Widget> Zhengzhuang = [];
+  List<Widget> jiuzhenjilu = [];
   static const String FC_KEY = '外院辅助检查';
   static const List<String> FC_MENU_ITEMS = [
     '时间',
@@ -74,7 +76,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
   late List<Widget> hunyushi;
   late List<Widget> jiazushi;
   late List<Widget> fucha;
-  late bool zzremovemode, fcremovemode;
+  late bool fcremovemode;
   bool freazeIsPlaying = false;
   String? currentRecordingPath;
   late List<FileSystemEntity> audioFiles;
@@ -135,7 +137,9 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
     _jiashuManxingController = TextEditingController(
       text: MedicalRecord['家族史']?['慢性病'] ?? '',
     );
-    zzremovemode = false;
+
+    jiuzhenjilu = [];
+    _buildJZJL();
     buildZhengzhuang();
     jiwangshi = [];
     buildjiwangshi();
@@ -327,32 +331,8 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text("现病史"),
-                ExpansionTile(
-                  title: Row(
-                    children: [
-                      Text('症状'),
-                      Spacer(),
-                      IconButton(
-                        onPressed: () {
-                          addzz();
-                        },
-                        icon: Icon(Icons.add),
-                      ),
-                      IconButton(
-                        onPressed: () {
-                          setState(() {
-                            zzremovemode = !zzremovemode;
-                            Zhengzhuang.clear();
-                            buildZhengzhuang();
-                          });
-                        },
-                        icon: Icon(Icons.remove),
-                      ),
-                    ],
-                  ),
-                  children: [...Zhengzhuang],
-                ),
-                Divider(),
+                ...Zhengzhuang,
+                ...jiuzhenjilu,
                 Padding(
                   padding: EdgeInsets.all(_inputPadding),
                   child: TextField(
@@ -401,84 +381,15 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
     );
   }
 
-  void addzz() {
-    setState(() {
-      int number = Zhengzhuang.length;
-      List<TextEditingController> zz = List.generate(
-        8,
-        (_) => TextEditingController(),
-      );
-      List<String> menu = [
-        '名字',
-        '开始时间',
-        '持续时间',
-        '频率',
-        '程度',
-        '类型',
-        '伴随症状',
-        '其他',
-      ];
-      for (int j = 0; j <= 7; j++) {
-        array[zz[j]] = ['现病史', '症状', number, menu[j]];
-        MedicalRecord = JsonAdd(
-          ['现病史', '症状', number, menu[j]],
-          MedicalRecord,
-          '',
-        );
-        zz[j].text = '';
-      }
-      Zhengzhuang.add(
-        ExpansionTile(
-          title: Row(
-            children: [
-              Text('症状'),
-              Spacer(),
-              if (zzremovemode)
-                IconButton(
-                  onPressed: () {
-                    MedicalRecord = JsonDel([
-                      '现病史',
-                      '症状',
-                      number,
-                    ], MedicalRecord);
-                    setState(() {
-                      Zhengzhuang.clear();
-                      buildZhengzhuang();
-                    });
-                  },
-                  icon: Icon(Icons.remove),
-                ),
-            ],
-          ),
-          children: [
-            for (int j = 0; j <= 7; j++)
-              Padding(
-                padding: EdgeInsets.all(_inputPadding),
-                child: TextField(
-                  controller: zz[j],
-                  decoration: InputDecoration(labelText: menu[j]),
-                  onChanged: (value) {
-                    MedicalRecord = JsonChange(
-                      ['现病史', '症状', number, menu[j]],
-                      MedicalRecord,
-                      value,
-                    );
-                  },
-                ),
-              ),
-          ],
-        ),
-      );
-    });
-  }
+  ValueNotifier<bool> zzremovemode = ValueNotifier(false);
 
   void buildZhengzhuang() {
-    for (int i = 0; i < MedicalRecord["现病史"]['症状'].length; i++) {
-      List<TextEditingController> zz = List.generate(
-        8,
-        (_) => TextEditingController(),
+    Widget _buildZhengzhuangTile(String id) {
+      final symptom = MedicalRecord['现病史']['症状'].firstWhere(
+        (item) => item['id'] == id,
       );
-      List<String> menu = [
+
+      const List<String> menu = [
         '名字',
         '开始时间',
         '持续时间',
@@ -488,53 +399,255 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
         '伴随症状',
         '其他',
       ];
-      for (int j = 0; j <= 6; j++) {
-        zz[j].text = MedicalRecord['现病史']['症状'][i][menu[j]];
-        array[zz[j]] = ['现病史', '症状', i, menu[j]];
-      }
-      zz[7].text = MedicalRecord["现病史"]['症状'][i]['其他'] == null
-          ? ''
-          : MedicalRecord["现病史"]['症状'][i]['其他'];
-      array[zz[7]] = ['现病史', '症状', i, '其他'];
-      Zhengzhuang.add(
-        ExpansionTile(
-          title: Row(
-            children: [
-              Text('症状'),
-              Spacer(),
-              if (zzremovemode)
-                IconButton(
+
+      return ExpansionTile(
+        key: Key(id),
+        title: symptom['名字'] == '' ? Text('症状') : Text(symptom['名字']),
+        trailing: ValueListenableBuilder(
+          valueListenable: zzremovemode,
+          builder: (context, value, child) {
+            return zzremovemode.value
+                ? IconButton(
+                    onPressed: () {
+                      // 删除数据
+                      MedicalRecord['现病史']['症状'].removeWhere(
+                        (item) => item['id'] == id,
+                      );
+                      // 更新 UI 列表
+                      setState(() {
+                        Zhengzhuang.removeWhere(
+                          (widget) =>
+                              widget is ExpansionTile &&
+                              widget.title is Text &&
+                              widget.title.toString().contains(id),
+                        );
+                      });
+                    },
+                    icon: Icon(Icons.remove),
+                  )
+                : SizedBox.shrink();
+          },
+        ),
+        children: [
+          ...List.generate(8, (index1) {
+            return TextField(
+              controller: TextEditingController(text: symptom[menu[index1]]),
+              decoration: InputDecoration(labelText: menu[index1]),
+              onChanged: (value) {
+                symptom[menu[index1]] = value;
+              },
+            );
+          }),
+        ],
+      );
+    }
+
+    // 添加“新建”按钮项
+    Zhengzhuang.add(
+      ListTile(
+        title: Row(
+          children: [
+            Text('症状'),
+            Spacer(),
+            IconButton(
+              onPressed: () {
+                final String newId = Uuid().v4();
+                if (MedicalRecord['现病史']['症状'] == null) {
+                  MedicalRecord['现病史']['症状'] = [];
+                }
+                MedicalRecord['现病史']['症状'].add({
+                  'id': newId,
+                  '名字': '',
+                  '开始时间': '',
+                  '持续时间': '',
+                  '频率': '',
+                  '程度': '',
+                  '类型': '',
+                  '伴随症状': '',
+                  '其他': '',
+                });
+                setState(() {
+                  Zhengzhuang.add(_buildZhengzhuangTile(newId));
+                });
+              },
+              icon: Icon(Icons.add),
+            ),
+            ValueListenableBuilder(
+              valueListenable: zzremovemode,
+              builder: (context, value, child) {
+                return IconButton(
                   onPressed: () {
-                    MedicalRecord = JsonDel(['现病史', '症状', i], MedicalRecord);
                     setState(() {
-                      Zhengzhuang.clear();
-                      buildZhengzhuang();
+                      zzremovemode.value = !value;
                     });
                   },
                   icon: Icon(Icons.remove),
-                ),
-            ],
-          ),
-          children: [
-            for (int j = 0; j <= 7; j++)
-              Padding(
-                padding: EdgeInsets.all(_inputPadding),
-                child: TextField(
-                  controller: zz[j],
-                  decoration: InputDecoration(labelText: menu[j]),
-                  onChanged: (value) {
-                    MedicalRecord = JsonChange(
-                      ['现病史', '症状', i, menu[j]],
-                      MedicalRecord,
-                      value,
-                    );
-                  },
-                ),
-              ),
+                );
+              },
+            ),
           ],
         ),
+      ),
+    );
+
+    if (MedicalRecord['现病史']['症状'].isEmpty ||
+        MedicalRecord['现病史']['症状'] == null) {
+      return;
+    }
+
+    Zhengzhuang.addAll(
+      MedicalRecord['现病史']['症状']
+          .map((symptom) {
+            return _buildZhengzhuangTile(symptom['id']);
+          })
+          .toList()
+          .cast<Widget>()
+          .toList(),
+    );
+  }
+
+  final ValueNotifier<bool> removeModeNotifier = ValueNotifier(false);
+  final ValueNotifier<String> datetime = ValueNotifier('');
+  late String currentEditingId; // 可选：用于记录当前正在编辑的时间字段
+
+  void _buildJZJL() {
+    // 构建单个 ExpansionTile
+    Widget buildJZJLtile(String id) {
+      final record = MedicalRecord['现病史']['诊疗经过'].firstWhere(
+        (item) => item['id'] == id,
+      );
+
+      datetime.value = record['时间'];
+
+      const List<String> zljg = ['地点', '诊断', '治疗', '转归', '备注'];
+
+      return ExpansionTile(
+        key: Key(id),
+        title: record['时间'] == '' ? Text('时间') : Text(record['时间']),
+        trailing: ValueListenableBuilder(
+          valueListenable: removeModeNotifier,
+          builder: (context, value, child) {
+            return removeModeNotifier.value
+                ? IconButton(
+                    onPressed: () {
+                      // 删除数据
+                      MedicalRecord['现病史']['诊疗经过'].removeWhere(
+                        (item) => item['id'] == id,
+                      );
+                      // 更新 UI 列表
+                      setState(() {
+                        jiuzhenjilu.removeWhere(
+                          (widget) =>
+                              widget is ExpansionTile &&
+                              widget.key.toString().contains(id),
+                        );
+                      });
+                    },
+                    icon: Icon(Icons.remove),
+                  )
+                : SizedBox(height: 0, width: 0);
+          },
+        ),
+        children: [
+          InkWell(
+            child: ListTile(
+              title: Text('时间'),
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  firstDate: DateTime.fromMillisecondsSinceEpoch(0),
+                  lastDate: DateTime.now(),
+                  initialDate: record['时间'].isEmpty
+                      ? DateTime.now()
+                      : DateTime.parse(record['时间']),
+                );
+                if (date != null) {
+                  final formattedDate = DateFormat('yyyy-MM-dd').format(date);
+                  record['时间'] = formattedDate;
+                  datetime.value = formattedDate;
+                }
+              },
+              trailing: ValueListenableBuilder(
+                valueListenable: datetime,
+                builder: (context, value, child) {
+                  return Text(record['时间']);
+                },
+              ),
+            ),
+          ),
+          Column(
+            children: List.generate(5, (index1) {
+              return Padding(
+                padding: const EdgeInsets.all(_inputPadding),
+                child: TextField(
+                  controller: TextEditingController(text: record[zljg[index1]]),
+                  decoration: InputDecoration(labelText: zljg[index1]),
+                  onChanged: (value) {
+                    record[zljg[index1]] = value;
+                  },
+                ),
+              );
+            }),
+          ),
+        ],
       );
     }
+
+    // 添加“新建”按钮项
+    jiuzhenjilu.add(
+      ListTile(
+        title: Text('诊疗经过'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: () {
+                final newId = Uuid().v4();
+                MedicalRecord['现病史']['诊疗经过'].add({
+                  'id': newId,
+                  '时间': '',
+                  '地点': '',
+                  '诊断': '',
+                  '治疗': '',
+                  '转归': '',
+                  '备注': '',
+                });
+                setState(() {
+                  jiuzhenjilu.add(buildJZJLtile(newId));
+                });
+              },
+              icon: Icon(Icons.add),
+            ),
+            ValueListenableBuilder<bool>(
+              valueListenable: removeModeNotifier,
+              builder: (context, value, child) {
+                return IconButton(
+                  onPressed: () => removeModeNotifier.value = !value,
+                  icon: Icon(Icons.remove),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+
+    // 如果没有记录，不显示任何 tile
+    if (MedicalRecord['现病史']['诊疗经过'].isEmpty ||
+        MedicalRecord['现病史']['诊疗经过'] == null) {
+      return;
+    }
+
+    // 动态构建所有 tile
+    jiuzhenjilu.addAll(
+      MedicalRecord['现病史']['诊疗经过']
+          .map((record) {
+            return buildJZJLtile(record['id']);
+          })
+          .toList()
+          .cast<Widget>()
+          .toList(),
+    );
   }
 
   void addjws(String key) {
@@ -1552,7 +1665,6 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
           icon: Icon(Icons.save),
           onPressed: () {
             saveData();
-            quit();
           },
         ),
         if (widget.item != null)
