@@ -18,10 +18,11 @@ import 'package:medicalmanager/tools/recorder.dart';
 import 'package:medicalmanager/tools/player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart' as path;
 
 const double _sectionSpacing = 24.0;
 const double _cardPadding = 16.0;
-const double _inputPadding = 12.0;
+const double _inputPadding = 6.0;
 const double _titleFontSize = 18.0;
 
 class EditPage extends StatefulWidget {
@@ -61,22 +62,12 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
   late TextEditingController _jiashuManxingController;
   List<Widget> Zhengzhuang = [];
   List<Widget> jiuzhenjilu = [];
-  static const String FC_KEY = '外院辅助检查';
-  static const List<String> FC_MENU_ITEMS = [
-    '时间',
-    '医院',
-    '项目',
-    '结果',
-    '其他',
-    '图片',
-  ];
   late List<Widget> jiwangshi;
   late List<Widget> gerenshi;
   late List<bool> _switch;
   late List<Widget> hunyushi;
   late List<Widget> jiazushi;
   late List<Widget> fucha;
-  late bool fcremovemode;
   bool freazeIsPlaying = false;
   String? currentRecordingPath;
   late List<FileSystemEntity> audioFiles;
@@ -150,7 +141,6 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
     buildhunyushi();
     jiazushi = [];
     buildjiazushi();
-    fcremovemode = false;
     fucha = [];
     buildFucha();
     if (Platform.isAndroid || Platform.isIOS) {
@@ -325,6 +315,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
         Card(
+          clipBehavior: Clip.antiAlias,
           child: Padding(
             padding: const EdgeInsets.all(_cardPadding),
             child: Column(
@@ -382,9 +373,9 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
   }
 
   ValueNotifier<bool> zzremovemode = ValueNotifier(false);
-
+  ValueNotifier<bool> title = ValueNotifier(false);
   void buildZhengzhuang() {
-    Widget _buildZhengzhuangTile(String id) {
+    Widget buildZhengzhuangTile(String id) {
       final symptom = MedicalRecord['现病史']['症状'].firstWhere(
         (item) => item['id'] == id,
       );
@@ -400,45 +391,66 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
         '其他',
       ];
 
-      return ExpansionTile(
-        key: Key(id),
-        title: symptom['名字'] == '' ? Text('症状') : Text(symptom['名字']),
-        trailing: ValueListenableBuilder(
-          valueListenable: zzremovemode,
-          builder: (context, value, child) {
-            return zzremovemode.value
-                ? IconButton(
-                    onPressed: () {
-                      // 删除数据
-                      MedicalRecord['现病史']['症状'].removeWhere(
-                        (item) => item['id'] == id,
-                      );
-                      // 更新 UI 列表
-                      setState(() {
-                        Zhengzhuang.removeWhere(
-                          (widget) =>
-                              widget is ExpansionTile &&
-                              widget.title is Text &&
-                              widget.title.toString().contains(id),
+      return Card(
+        elevation: 1,
+        child: ExpansionTile(
+          key: Key(id),
+          title: ValueListenableBuilder(
+            valueListenable: title,
+            builder: (index, value, child) {
+              return symptom['名字'] == '' ? Text('症状') : Text(symptom['名字']);
+            },
+          ),
+          trailing: ValueListenableBuilder(
+            valueListenable: zzremovemode,
+            builder: (context, value, child) {
+              return zzremovemode.value
+                  ? IconButton(
+                      onPressed: () {
+                        // 删除数据
+                        MedicalRecord['现病史']['症状'].removeWhere(
+                          (item) => item['id'] == id,
                         );
-                      });
-                    },
-                    icon: Icon(Icons.remove),
-                  )
-                : SizedBox.shrink();
-          },
+                        // 更新 UI 列表
+                        setState(() {
+                          Zhengzhuang.removeWhere(
+                            (widget) =>
+                                widget is ExpansionTile &&
+                                widget.title is Text &&
+                                widget.title.toString().contains(id),
+                          );
+                        });
+                      },
+                      icon: Icon(Icons.remove, color: Colors.red),
+                    )
+                  : SizedBox.shrink();
+            },
+          ),
+          children: [
+            ...List.generate(8, (index1) {
+              return Padding(
+                padding: const EdgeInsets.all(_inputPadding),
+                child: TextField(
+                  controller: TextEditingController(
+                    text: symptom[menu[index1]],
+                  ),
+                  decoration: InputDecoration(labelText: menu[index1]),
+                  onChanged: (value) {
+                    symptom[menu[index1]] = value;
+                    MedicalRecord['现病史']['症状'][MedicalRecord['现病史']['症状']
+                            .indexWhere(
+                              (item) => item['id'] == id,
+                            )][menu[index1]] =
+                        value;
+                    if (index1 == 0) {
+                      title.value = !title.value;
+                    }
+                  },
+                ),
+              );
+            }),
+          ],
         ),
-        children: [
-          ...List.generate(8, (index1) {
-            return TextField(
-              controller: TextEditingController(text: symptom[menu[index1]]),
-              decoration: InputDecoration(labelText: menu[index1]),
-              onChanged: (value) {
-                symptom[menu[index1]] = value;
-              },
-            );
-          }),
-        ],
       );
     }
 
@@ -467,7 +479,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                   '其他': '',
                 });
                 setState(() {
-                  Zhengzhuang.add(_buildZhengzhuangTile(newId));
+                  Zhengzhuang.add(buildZhengzhuangTile(newId));
                 });
               },
               icon: Icon(Icons.add),
@@ -481,7 +493,9 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                       zzremovemode.value = !value;
                     });
                   },
-                  icon: Icon(Icons.remove),
+                  icon: zzremovemode.value
+                      ? Icon(Icons.done, color: Colors.red)
+                      : Icon(Icons.remove),
                 );
               },
             ),
@@ -498,7 +512,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
     Zhengzhuang.addAll(
       MedicalRecord['现病史']['症状']
           .map((symptom) {
-            return _buildZhengzhuangTile(symptom['id']);
+            return buildZhengzhuangTile(symptom['id']);
           })
           .toList()
           .cast<Widget>()
@@ -507,89 +521,100 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
   }
 
   final ValueNotifier<bool> removeModeNotifier = ValueNotifier(false);
-  final ValueNotifier<String> datetime = ValueNotifier('');
+  final ValueNotifier<bool> datetime = ValueNotifier(false);
   late String currentEditingId; // 可选：用于记录当前正在编辑的时间字段
-
   void _buildJZJL() {
     // 构建单个 ExpansionTile
     Widget buildJZJLtile(String id) {
       final record = MedicalRecord['现病史']['诊疗经过'].firstWhere(
         (item) => item['id'] == id,
       );
-
-      datetime.value = record['时间'];
-
       const List<String> zljg = ['地点', '诊断', '治疗', '转归', '备注'];
 
-      return ExpansionTile(
-        key: Key(id),
-        title: record['时间'] == '' ? Text('时间') : Text(record['时间']),
-        trailing: ValueListenableBuilder(
-          valueListenable: removeModeNotifier,
-          builder: (context, value, child) {
-            return removeModeNotifier.value
-                ? IconButton(
-                    onPressed: () {
-                      // 删除数据
-                      MedicalRecord['现病史']['诊疗经过'].removeWhere(
-                        (item) => item['id'] == id,
-                      );
-                      // 更新 UI 列表
-                      setState(() {
-                        jiuzhenjilu.removeWhere(
-                          (widget) =>
-                              widget is ExpansionTile &&
-                              widget.key.toString().contains(id),
-                        );
-                      });
-                    },
-                    icon: Icon(Icons.remove),
-                  )
-                : SizedBox(height: 0, width: 0);
-          },
-        ),
-        children: [
-          InkWell(
-            child: ListTile(
-              title: Text('时间'),
-              onTap: () async {
-                final date = await showDatePicker(
-                  context: context,
-                  firstDate: DateTime.fromMillisecondsSinceEpoch(0),
-                  lastDate: DateTime.now(),
-                  initialDate: record['时间'].isEmpty
-                      ? DateTime.now()
-                      : DateTime.parse(record['时间']),
-                );
-                if (date != null) {
-                  final formattedDate = DateFormat('yyyy-MM-dd').format(date);
-                  record['时间'] = formattedDate;
-                  datetime.value = formattedDate;
-                }
-              },
-              trailing: ValueListenableBuilder(
-                valueListenable: datetime,
-                builder: (context, value, child) {
-                  return Text(record['时间']);
-                },
-              ),
-            ),
+      return Card(
+        elevation: 1,
+        child: ExpansionTile(
+          key: Key(id),
+          title: ValueListenableBuilder(
+            valueListenable: datetime,
+            builder: (index, value, child) {
+              return record['时间'] == '' ? Text('时间') : Text(record['时间']);
+            },
           ),
-          Column(
-            children: List.generate(5, (index1) {
-              return Padding(
-                padding: const EdgeInsets.all(_inputPadding),
-                child: TextField(
-                  controller: TextEditingController(text: record[zljg[index1]]),
-                  decoration: InputDecoration(labelText: zljg[index1]),
-                  onChanged: (value) {
-                    record[zljg[index1]] = value;
+          trailing: ValueListenableBuilder(
+            valueListenable: removeModeNotifier,
+            builder: (context, value, child) {
+              return removeModeNotifier.value
+                  ? IconButton(
+                      onPressed: () {
+                        // 删除数据
+                        MedicalRecord['现病史']['诊疗经过'].removeWhere(
+                          (item) => item['id'] == id,
+                        );
+                        // 更新 UI 列表
+                        setState(() {
+                          jiuzhenjilu.removeWhere(
+                            (widget) =>
+                                widget is ExpansionTile &&
+                                widget.key.toString().contains(id),
+                          );
+                        });
+                      },
+                      icon: Icon(Icons.remove, color: Colors.red),
+                    )
+                  : SizedBox(height: 0, width: 0);
+            },
+          ),
+          children: [
+            InkWell(
+              child: ListTile(
+                title: Text('时间'),
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    firstDate: DateTime.fromMillisecondsSinceEpoch(0),
+                    lastDate: DateTime.now(),
+                    initialDate: record['时间'].isEmpty
+                        ? DateTime.now()
+                        : DateTime.parse(record['时间']),
+                  );
+                  if (date != null) {
+                    final formattedDate = DateFormat('yyyy-MM-dd').format(date);
+                    MedicalRecord['现病史']['诊疗经过'][MedicalRecord['现病史']['诊疗经过']
+                            .indexWhere((item) => item['id'] == id)]['时间'] =
+                        formattedDate;
+                    datetime.value = !datetime.value;
+                  }
+                },
+                trailing: ValueListenableBuilder(
+                  valueListenable: datetime,
+                  builder: (context, value, child) {
+                    return Text(record['时间']);
                   },
                 ),
-              );
-            }),
-          ),
-        ],
+              ),
+            ),
+            Column(
+              children: List.generate(5, (index1) {
+                return Padding(
+                  padding: const EdgeInsets.all(_inputPadding),
+                  child: TextField(
+                    controller: TextEditingController(
+                      text: record[zljg[index1]],
+                    ),
+                    decoration: InputDecoration(labelText: zljg[index1]),
+                    onChanged: (value) {
+                      record[zljg[index1]] = value;
+                      MedicalRecord['现病史']['诊疗经过'][MedicalRecord['现病史']['诊疗经过']
+                              .indexWhere((item) => item['id'] == id)][index1] =
+                          value;
+                    },
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
       );
     }
 
@@ -623,7 +648,9 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
               builder: (context, value, child) {
                 return IconButton(
                   onPressed: () => removeModeNotifier.value = !value,
-                  icon: Icon(Icons.remove),
+                  icon: removeModeNotifier.value
+                      ? Icon(Icons.done, color: Colors.red)
+                      : Icon(Icons.remove),
                 );
               },
             ),
@@ -910,7 +937,6 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
               ),
               if (_switch[0])
                 Container(
-                  margin: EdgeInsets.only(top: _inputPadding),
                   padding: EdgeInsets.all(_inputPadding),
                   child: Row(
                     children: [
@@ -1193,7 +1219,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                     children: [
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(_inputPadding),
                           child: TextField(
                             controller: TextEditingController(
                               text: MedicalRecord['婚育史']['结婚']['详情'],
@@ -1237,7 +1263,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                     physics: NeverScrollableScrollPhysics(),
                     children: [
                       Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(_inputPadding),
                         child: TextField(
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(
@@ -1274,7 +1300,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(_inputPadding),
                         child: TextField(
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(
@@ -1309,7 +1335,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(_inputPadding),
                         child: TextField(
                           controller: zn,
                           readOnly: true,
@@ -1351,7 +1377,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                       ),
                       if (MedicalRecord['sex'] != "男")
                         Padding(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(_inputPadding),
                           child: TextField(
                             inputFormatters: [
                               FilteringTextInputFormatter.allow(
@@ -1373,7 +1399,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                         ),
                       if (MedicalRecord['sex'] != "男")
                         Padding(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(_inputPadding),
                           child: TextField(
                             inputFormatters: [
                               FilteringTextInputFormatter.allow(
@@ -1413,7 +1439,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(_inputPadding),
                 child: TextField(
                   controller: _jiashuFumuController,
                   decoration: InputDecoration(labelText: '父母、兄弟姐妹'),
@@ -1427,7 +1453,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(_inputPadding),
                 child: TextField(
                   controller: _jiashuYichuanController,
                   decoration: InputDecoration(labelText: '遗传病'),
@@ -1441,7 +1467,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(_inputPadding),
                 child: TextField(
                   controller: _jiashuManxingController,
                   decoration: InputDecoration(labelText: '慢性病'),
@@ -1461,198 +1487,224 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
     );
   }
 
-  // 在State类顶部定义常量
-
-  // 改进后的函数
-  void addFcItem() {
-    setState(() {
-      // 获取新项目的索引
-      final number = MedicalRecord[FC_KEY]?.length ?? 0;
-
-      // 初始化新项目数据结构
-      if (!MedicalRecord.containsKey(FC_KEY)) {
-        MedicalRecord[FC_KEY] = [];
-      }
-      MedicalRecord[FC_KEY].add({for (var item in FC_MENU_ITEMS) item: ''});
-
-      // 创建UI项
-      final newItem = _buildFcItem(
-        index: number,
-        data: MedicalRecord[FC_KEY][number],
-        onRemove: () => _removeFcItem(number),
-      );
-
-      // 添加到UI列表
-      fucha.add(newItem);
-    });
-  }
-
+  ValueNotifier<bool> fcremovemode = ValueNotifier(false);
+  static const List<String> FC_MENU_ITEMS = [
+    '时间',
+    '医院',
+    '项目',
+    '结果',
+    '其他',
+    '图片',
+  ];
   void buildFucha() {
-    // 清空现有列表
     fucha.clear();
+    Widget _buildFcItem(String id) {
+      final record = MedicalRecord['外院辅助检查'].firstWhere(
+        (item) => item['id'] == id,
+      );
+      return Card(
+        child: ExpansionTile(
+          key: Key(id), // 添加key以优化性能
+          title: ValueListenableBuilder(
+            valueListenable: datetime,
+            builder: (index, value, child) {
+              return Text(
+                record[FC_MENU_ITEMS[0]] == ''
+                    ? '辅助检查'
+                    : record[FC_MENU_ITEMS[0]],
+              );
+            },
+          ),
+
+          trailing: ValueListenableBuilder(
+            valueListenable: fcremovemode,
+            builder: (context, value, child) {
+              if (fcremovemode.value) {
+                return IconButton(
+                  icon: const Icon(Icons.remove, size: 20),
+                  onPressed: () {
+                    for (String i in record[FC_MENU_ITEMS[5]]) {
+                      final docPath = settings.docPath;
+                      final filePath = path.join(
+                        docPath,
+                        'data',
+                        uuid,
+                        'pictures',
+                        i,
+                      );
+                      final file = File(filePath);
+                      if (file.existsSync()) {
+                        file.deleteSync();
+                      }
+                    }
+                    MedicalRecord['外院辅助检查'].removeWhere(
+                      (item) => item['id'] == id,
+                    );
+                    setState(() {
+                      fucha.removeWhere(
+                        (widget) =>
+                            widget is ExpansionTile &&
+                            widget.key.toString().contains(id),
+                      );
+                    });
+                  },
+                  tooltip: '删除此项',
+                  color: Colors.red,
+                );
+              } else {
+                return IconButton(
+                  onPressed: () {
+                    try {
+                      record[FC_MENU_ITEMS[5]] =
+                          record[FC_MENU_ITEMS[5]] is List
+                          ? record[FC_MENU_ITEMS[5]]
+                          : [];
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ImageGalleryPage(
+                            imageData: record[FC_MENU_ITEMS[5]],
+                            uuid: widget.item?['uuid'],
+                            name: MedicalRecord['name'],
+                            onreturn: (newitem) {
+                              setState(() {
+                                MedicalRecord['外院辅助检查'][MedicalRecord['外院辅助检查']
+                                        .indexWhere(
+                                          (item) => item['id'] == id,
+                                        )][FC_MENU_ITEMS[5]] =
+                                    newitem;
+                              });
+                              saveData();
+                            },
+                          ),
+                        ),
+                      );
+                    } catch (e) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('图片库加载失败: $e')));
+                    }
+                  },
+                  icon: Icon(Icons.photo_library),
+                );
+              }
+            },
+          ),
+          children: [
+            InkWell(
+              child: ListTile(
+                title: Text('时间'),
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    firstDate: DateTime.fromMillisecondsSinceEpoch(0),
+                    lastDate: DateTime.now(),
+                    initialDate: record['时间'].isEmpty
+                        ? DateTime.now()
+                        : DateTime.parse(record['时间']),
+                  );
+                  if (date != null) {
+                    final formattedDate = DateFormat('yyyy-MM-dd').format(date);
+                    record['时间'] = formattedDate;
+                    datetime.value = !datetime.value;
+                  }
+                },
+                trailing: ValueListenableBuilder(
+                  valueListenable: datetime,
+                  builder: (context, value, child) {
+                    return Text(record['时间']);
+                  },
+                ),
+              ),
+            ),
+            for (int j = 1; j < FC_MENU_ITEMS.length - 1; j++)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: TextField(
+                  controller: TextEditingController(
+                    text: record[FC_MENU_ITEMS[j]],
+                  ),
+                  decoration: InputDecoration(
+                    labelText: FC_MENU_ITEMS[j],
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  onChanged: (value) {
+                    // 更新数据结构
+                    MedicalRecord['外院辅助检查'][[
+                          MedicalRecord['外院辅助检查'].indexWhere(
+                            (item) => item['id'] == id,
+                          ),
+                        ]][FC_MENU_ITEMS[j]] =
+                        value;
+                  },
+                ),
+              ),
+          ],
+        ),
+      );
+    }
 
     // 添加标题行
     fucha.add(
-      Row(
-        children: [
-          const Text('辅助检查', style: TextStyle(fontWeight: FontWeight.bold)),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: addFcItem,
-            tooltip: '添加辅查',
-          ),
-          IconButton(
-            icon: Icon(fcremovemode ? Icons.done : Icons.delete),
-            onPressed: () {
-              setState(() {
-                fcremovemode = !fcremovemode;
-                // 重新构建列表以更新删除按钮状态
-                buildFucha();
-              });
-            },
-            tooltip: fcremovemode ? '退出删除模式' : '删除模式',
-            color: fcremovemode ? Colors.red : null,
-          ),
-        ],
-      ),
-    );
+      ListTile(
+        title: const Text(
+          '辅助检查',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
 
-    // 添加现有项目
-    if (MedicalRecord[FC_KEY] != null) {
-      for (int i = 0; i < MedicalRecord[FC_KEY].length; i++) {
-        fucha.add(
-          _buildFcItem(
-            index: i,
-            data: MedicalRecord[FC_KEY][i],
-            onRemove: () => _removeFcItem(i),
-          ),
-        );
-      }
-    }
-  }
-
-  // 辅助函数：构建单个辅查项目
-  Widget _buildFcItem({
-    required int index,
-    required Map<String, dynamic> data,
-    required VoidCallback onRemove,
-  }) {
-    // 为每个字段创建控制器
-    final controllers = List<TextEditingController>.generate(
-      FC_MENU_ITEMS.length - 1, // 减去图片字段
-      (j) {
-        final controller = TextEditingController(
-          text: data[FC_MENU_ITEMS[j]]?.toString() ?? '',
-        );
-
-        // 设置控制器关联的数据路径
-        array1[controller] = [FC_KEY, index, FC_MENU_ITEMS[j]];
-
-        return controller;
-      },
-    );
-
-    return ExpansionTile(
-      key: ValueKey('fc_$index'), // 添加key以优化性能
-      title: Row(
-        children: [
-          Text('辅查 ${index + 1}'), // 添加序号
-          const Spacer(),
-
-          if (fcremovemode)
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
             IconButton(
-              icon: const Icon(Icons.delete, size: 20),
-              onPressed: onRemove,
-              tooltip: '删除此项',
-              color: Colors.red,
-            )
-          else
-            IconButton(
+              icon: const Icon(Icons.add),
               onPressed: () {
-                try {
-                  MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]] =
-                      MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]] is List
-                      ? MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]]
-                      : [];
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ImageGalleryPage(
-                        imageData:
-                            MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]],
-                        uuid: widget.item?['uuid'],
-                        name: MedicalRecord['name'],
-                        onreturn: (newitem) {
-                          setState(() {
-                            MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[5]] =
-                                newitem;
-                          });
-                          saveData();
-                        },
-                      ),
-                    ),
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('图片库加载失败: $e')));
-                }
+                String id = Uuid().v4();
+                MedicalRecord['外院辅助检查'].add({
+                  'id': id,
+                  '时间': '',
+                  '医院': '',
+                  '项目': '',
+                  '结果': '',
+                  '其他': '',
+                  '图片': [],
+                });
+                setState(() {
+                  fucha.add(_buildFcItem(id));
+                });
               },
-              icon: Icon(Icons.photo_library),
+              tooltip: '添加辅查',
             ),
-        ],
+            ValueListenableBuilder(
+              valueListenable: fcremovemode,
+              builder: (context, value, child) {
+                return IconButton(
+                  icon: Icon(fcremovemode.value ? Icons.done : Icons.remove),
+                  onPressed: () {
+                    fcremovemode.value = !value;
+                  },
+                  tooltip: fcremovemode.value ? '退出删除模式' : '删除模式',
+                  color: fcremovemode.value ? Colors.red : null,
+                );
+              },
+            ),
+          ],
+        ),
       ),
-      children: [
-        for (int j = 0; j < FC_MENU_ITEMS.length - 1; j++)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: TextField(
-              controller: controllers[j],
-              decoration: InputDecoration(
-                labelText: FC_MENU_ITEMS[j],
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              ),
-              onChanged: (value) {
-                // 更新数据结构
-                MedicalRecord[FC_KEY][index][FC_MENU_ITEMS[j]] = value;
-
-                // 更新全局映射
-                array1[controllers[j]] = [FC_KEY, index, FC_MENU_ITEMS[j]];
-              },
-            ),
-          ),
-      ],
     );
-  }
-
-  // 辅助函数：删除项目
-  void _removeFcItem(int index) {
-    setState(() {
-      // 从数据结构中移除
-      MedicalRecord[FC_KEY].removeAt(index);
-
-      // 清理关联的控制器
-      _cleanupFcControllers(index);
-
-      // 重建UI
-      buildFucha();
-    });
-  }
-
-  // 辅助函数：清理控制器
-  void _cleanupFcControllers(int removedIndex) {
-    // 移除被删除项的控制器
-    array1.removeWhere((controller, path) {
-      return path[0] == FC_KEY && path[1] == removedIndex;
-    });
-
-    // 更新剩余项的索引
-    array1.forEach((controller, path) {
-      if (path[0] == FC_KEY && path[1] > removedIndex) {
-        array1[controller] = [FC_KEY, path[1] - 1, path[2]];
-      }
-    });
+    if (MedicalRecord['外院辅助检查'] == null || MedicalRecord['外院辅助检查'].isEmpty) {
+      return;
+    }
+    fucha.addAll(
+      List.generate(MedicalRecord['外院辅助检查'].length, (index) {
+        if (!MedicalRecord['外院辅助检查'][index].containsKey('id')) {
+          MedicalRecord['外院辅助检查'][index]['id'] = Uuid().v4();
+        }
+        return _buildFcItem(MedicalRecord['外院辅助检查'][index]['id']);
+      }).toList().cast<Widget>().toList(),
+    );
   }
 
   PreferredSizeWidget _buildAppBar() {
@@ -2060,6 +2112,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
               ...hunyushi,
               ...jiazushi,
               Card(
+                clipBehavior: Clip.antiAlias,
                 child: Padding(
                   padding: const EdgeInsets.all(_cardPadding),
                   child: Column(
