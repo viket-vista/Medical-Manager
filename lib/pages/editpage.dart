@@ -1255,14 +1255,11 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                 ],
               ),
               if (MedicalRecord['婚育史']['生育']['enabled'])
-                SizedBox(
-                  height: 200,
-                  child: GridView.count(
-                    crossAxisCount: 3,
-                    shrinkWrap: true,
-                    physics: NeverScrollableScrollPhysics(),
-                    children: [
-                      Padding(
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 1,
+                      child: Padding(
                         padding: const EdgeInsets.all(_inputPadding),
                         child: TextField(
                           inputFormatters: [
@@ -1299,7 +1296,10 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                           },
                         ),
                       ),
-                      Padding(
+                    ),
+                    Expanded(
+                      flex: 1,
+                      child: Padding(
                         padding: const EdgeInsets.all(_inputPadding),
                         child: TextField(
                           inputFormatters: [
@@ -1334,7 +1334,10 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                           },
                         ),
                       ),
-                      Padding(
+                    ),
+                    Expanded(
+                      flex: 1,
+                      child: Padding(
                         padding: const EdgeInsets.all(_inputPadding),
                         child: TextField(
                           controller: zn,
@@ -1375,52 +1378,62 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                           },
                         ),
                       ),
-                      if (MedicalRecord['sex'] != "男")
-                        Padding(
-                          padding: const EdgeInsets.all(_inputPadding),
-                          child: TextField(
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp(r'^[0-9]*$'),
-                              ),
-                            ],
-                            controller: TextEditingController(
-                              text: MedicalRecord['婚育史']['生育']['孕'].toString(),
+                    ),
+                  ],
+                ),
+              if (MedicalRecord['婚育史']['生育']['enabled'] &&
+                  MedicalRecord['sex'] != "男")
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 1,
+                      child: Padding(
+                        padding: const EdgeInsets.all(_inputPadding),
+                        child: TextField(
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'^[0-9]*$'),
                             ),
-                            decoration: InputDecoration(labelText: '孕'),
-                            onChanged: (value) {
-                              MedicalRecord = JsonChange(
-                                ['婚育史', '生育', '孕'],
-                                MedicalRecord,
-                                int.parse(value),
-                              );
-                            },
+                          ],
+                          controller: TextEditingController(
+                            text: MedicalRecord['婚育史']['生育']['孕'].toString(),
                           ),
+                          decoration: InputDecoration(labelText: '孕'),
+                          onChanged: (value) {
+                            MedicalRecord = JsonChange(
+                              ['婚育史', '生育', '孕'],
+                              MedicalRecord,
+                              int.parse(value),
+                            );
+                          },
                         ),
-                      if (MedicalRecord['sex'] != "男")
-                        Padding(
-                          padding: const EdgeInsets.all(_inputPadding),
-                          child: TextField(
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp(r'^[0-9]*$'),
-                              ),
-                            ],
-                            controller: TextEditingController(
-                              text: MedicalRecord['婚育史']['生育']['产'].toString(),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 1,
+                      child: Padding(
+                        padding: const EdgeInsets.all(_inputPadding),
+                        child: TextField(
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'^[0-9]*$'),
                             ),
-                            decoration: InputDecoration(labelText: '产'),
-                            onChanged: (value) {
-                              MedicalRecord = JsonChange(
-                                ['婚育史', '生育', '产'],
-                                MedicalRecord,
-                                int.parse(value),
-                              );
-                            },
+                          ],
+                          controller: TextEditingController(
+                            text: MedicalRecord['婚育史']['生育']['产'].toString(),
                           ),
+                          decoration: InputDecoration(labelText: '产'),
+                          onChanged: (value) {
+                            MedicalRecord = JsonChange(
+                              ['婚育史', '生育', '产'],
+                              MedicalRecord,
+                              int.parse(value),
+                            );
+                          },
                         ),
-                    ],
-                  ),
+                      ),
+                    ),
+                  ],
                 ),
             ],
           ),
