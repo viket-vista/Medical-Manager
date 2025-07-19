@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
@@ -111,12 +112,10 @@ class _RecordPageState extends State<RecordEdit> {
         },
       );
       if (!delete) return;
-      if (Platform.isAndroid || Platform.isIOS) {
-      } else {}
       await File(audioFiles[index].path).delete();
-
+      final json = jsonDecode((widget.file as File).readAsStringSync());
       final String recordDir =
-          '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/${path.basenameWithoutExtension(widget.file.path)}/';
+          '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/${json['id']}/';
       await _loadAudioFiles(recordDir);
     }
 
@@ -252,8 +251,9 @@ class _RecordPageState extends State<RecordEdit> {
   }
 
   Widget _buildRecordButtonSection(BuildContext context) {
+    final json = jsonDecode((widget.file as File).readAsStringSync());
     final String recordDir =
-        '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/${path.basenameWithoutExtension(widget.file.path)}/';
+        '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/${json['id']}/';
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAudioFiles(recordDir);

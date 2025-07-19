@@ -54,6 +54,7 @@ dependencies:
   flutter_localization: ^0.3.3
   path: ^1.9.1
   table_calendar: ^3.2.0
+  toggle_switch: ^2.3.0
   flutter_localizations:
     sdk: flutter
 dev_dependencies:
