@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:medicalmanager/tools/JsonChange.dart';
 import 'dart:io';
@@ -7,10 +5,8 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/services.dart'
     show FilteringTextInputFormatter, Clipboard, ClipboardData;
-import 'package:crypto/crypto.dart';
 import 'package:provider/provider.dart';
 import 'package:medicalmanager/models/settings_model.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'ShowPhotos.dart';
 import 'package:medicalmanager/tools/aitool.dart';
 import 'package:uuid/uuid.dart';
@@ -20,10 +16,8 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 
-const double _sectionSpacing = 24.0;
 const double _cardPadding = 16.0;
 const double _inputPadding = 6.0;
-const double _titleFontSize = 18.0;
 
 class EditPage extends StatefulWidget {
   final Map<String, dynamic>? item;
@@ -220,18 +214,9 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
       file.create();
     }
     await file.writeAsString(jsonStr);
+    widget.onSave(returnjson);
   }
 
-  void quit() {
-    Map<String, dynamic> returnjson = {};
-    returnjson["name"] = MedicalRecord["name"];
-    returnjson["age"] = MedicalRecord["age"];
-    returnjson["created_at"] = MedicalRecord["created_at"];
-    returnjson["last_edit_at"] = DateTime.now().millisecondsSinceEpoch;
-    returnjson["uuid"] = uuid;
-    widget.onSave(returnjson);
-    Navigator.pop(context);
-  }
 
   Widget buildBasicInfo() {
     Widget NAME = TextField(
@@ -311,6 +296,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
   }
 
   Widget buildXianbingshi() {
+    const List<String> items = ['大便', '小便', '精神', '体重'];
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
@@ -324,46 +310,20 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                 Text("现病史"),
                 ...Zhengzhuang,
                 ...jiuzhenjilu,
-                Padding(
-                  padding: EdgeInsets.all(_inputPadding),
-                  child: TextField(
-                    controller: dabian,
-                    decoration: InputDecoration(labelText: '大便'),
-                    onChanged: (value) {
-                      MedicalRecord['现病史']['一般情况']['大便'] = value;
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(_inputPadding),
-                  child: TextField(
-                    controller: xiaobian,
-                    decoration: InputDecoration(labelText: '小便'),
-                    onChanged: (value) {
-                      MedicalRecord['现病史']['一般情况']['小便'] = value;
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(_inputPadding),
-                  child: TextField(
-                    controller: shuimian,
-                    decoration: InputDecoration(labelText: '精神'),
-                    onChanged: (value) {
-                      MedicalRecord['现病史']['一般情况']['精神'] = value;
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(_inputPadding),
-                  child: TextField(
-                    controller: tizhong,
-                    decoration: InputDecoration(labelText: '体重'),
-                    onChanged: (value) {
-                      MedicalRecord['现病史']['一般情况']['体重'] = value;
-                    },
-                  ),
-                ),
+                ...List.generate(4, (index) {
+                  return Padding(
+                    padding: EdgeInsets.all(_inputPadding),
+                    child: TextField(
+                      controller: TextEditingController(
+                        text: MedicalRecord['现病史']['一般情况'][items[index]],
+                      ),
+                      decoration: InputDecoration(labelText: items[index]),
+                      onChanged: (value) {
+                        MedicalRecord['现病史']['一般情况'][items[index]] = value;
+                      },
+                    ),
+                  );
+                }),
               ],
             ),
           ),
@@ -690,6 +650,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
     int len = MedicalRecord['既往史'][key].length;
     if (menu[key] is List) {
       final List<String> fields = menu[key];
+      JsonAdd(['既往史', key, len, 'id'], MedicalRecord, Uuid().v4());
       for (var field in fields) {
         JsonAdd(['既往史', key, len, field], MedicalRecord, '');
       }

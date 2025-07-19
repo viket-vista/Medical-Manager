@@ -1,3 +1,5 @@
+// ignore_for_file: file_names, non_constant_identifier_names
+
 import 'package:flutter/material.dart';
 import 'package:medicalmanager/tools/aitool.dart';
 import 'package:provider/provider.dart';
@@ -21,7 +23,7 @@ class _AIPageState extends State<AIPage> {
   bool _isLoading = false;
   late bool _isStreaming;
   final List<String> _streamResponses = [];
-  final List<String> _streamResponses_reasoner = [];
+  final List<String> _streamResponses_Reasoner = [];
   late SettingsModel settings;
   StreamSubscription? _streamSubscription; // 用于管理流订阅
   final ScrollController _scrollController = ScrollController(); // 用于自动滚动
@@ -88,7 +90,7 @@ class _AIPageState extends State<AIPage> {
     setState(() {
       _isStreaming = true;
       _streamResponses.clear();
-      _streamResponses_reasoner.clear();
+      _streamResponses_Reasoner.clear();
       _displayText = ''; // 重置显示文本
       _response = ''; // 清空普通响应
       _reasoningResponse = ''; // 清空推理响应
@@ -117,7 +119,7 @@ class _AIPageState extends State<AIPage> {
             if (reasoningcontent != null && reasoningcontent.isNotEmpty) {
               setState(() {
                 // 添加到响应列表
-                _streamResponses_reasoner.add(reasoningcontent);
+                _streamResponses_Reasoner.add(reasoningcontent);
                 // 更新显示文本（打字机效果）
                 _reasoningResponse += reasoningcontent;
 

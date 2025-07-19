@@ -3,8 +3,9 @@ import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
 import 'package:medicalmanager/models/settings_model.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:medicalmanager/tools/recorder.dart';
+import 'package:medicalmanager/tools/player.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class RecordEdit extends StatefulWidget {
   final FileSystemEntity file;
@@ -16,6 +17,10 @@ class RecordEdit extends StatefulWidget {
 
 class _RecordPageState extends State<RecordEdit> {
   bool isRecording = false;
+  bool isPlaying = false;
+  String filName = '';
+  final Player player = Player();
+  ScrollController _scrollController = ScrollController();
   Duration recordingDuration = Duration.zero;
   Duration totalDuration = Duration.zero;
   List<FileSystemEntity> audioFiles = [];
@@ -32,7 +37,18 @@ class _RecordPageState extends State<RecordEdit> {
       },
     );
     recorder.init();
-    // 初始化逻辑（如果有）
+    player.init(() {
+      setState(() {
+        isPlaying = false;
+        filName = '';
+      });
+      double newPosition = _scrollController.offset - 100;
+      _scrollController.animateTo(
+        newPosition,
+        duration: Duration(milliseconds: 200),
+        curve: Curves.ease,
+      );
+    });
   }
 
   @override
@@ -60,6 +76,9 @@ class _RecordPageState extends State<RecordEdit> {
           ],
         ),
       ),
+      bottomSheet: isPlaying
+          ? Material(elevation: 4.0, child: player.buildPlayer(filName))
+          : SizedBox.shrink(),
     );
   }
 
@@ -134,7 +153,26 @@ class _RecordPageState extends State<RecordEdit> {
                       children: [
                         IconButton(
                           icon: Icon(Icons.play_arrow),
-                          onPressed: () {},
+                          onPressed: () {
+                            bool temp = isPlaying;
+                            setState(() {
+                              filName = file.path;
+                              isPlaying = true;
+                            });
+                            WakelockPlus.disable();
+                            player.reset();
+                            if (!temp) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                double newPosition =
+                                    _scrollController.offset + 100;
+                                _scrollController.animateTo(
+                                  newPosition, // 使用 clamp 确保值在范围内
+                                  duration: Duration(milliseconds: 200),
+                                  curve: Curves.linear,
+                                );
+                              });
+                            }
+                          },
                         ),
 
                         Padding(
@@ -143,7 +181,7 @@ class _RecordPageState extends State<RecordEdit> {
                             onTap: () {
                               showDialog(
                                 context: context,
-                                builder: (BuildContext context) {
+                                builder: (BuildContext context1) {
                                   final TextEditingController textController =
                                       TextEditingController(text: fileName);
                                   return AlertDialog(
@@ -154,10 +192,10 @@ class _RecordPageState extends State<RecordEdit> {
                                         hintText: '输入新的文件名',
                                       ),
                                     ),
-                                    actions: <Widget>[
+                                    actions: [
                                       TextButton(
                                         onPressed: () {
-                                          Navigator.of(context).pop();
+                                          Navigator.pop(context1);
                                         },
                                         child: Text('取消'),
                                       ),
@@ -167,7 +205,7 @@ class _RecordPageState extends State<RecordEdit> {
                                             index,
                                             textController.text,
                                           );
-                                          Navigator.of(context).pop();
+                                          Navigator.pop(context1);
                                         },
                                         child: Text('确定'),
                                       ),

@@ -4,12 +4,14 @@ import 'package:provider/provider.dart';
 import 'models/settings_model.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final settingsModel = SettingsModel();
   await settingsModel.init();
-  runApp(ChangeNotifierProvider.value(value: settingsModel, child: MyApp()));
+  initializeDateFormatting().then((_) => runApp(ChangeNotifierProvider.value(value: settingsModel, child: MyApp())));
+  
 }
 
 class MyApp extends StatelessWidget {
@@ -38,11 +40,12 @@ class MyApp extends StatelessWidget {
         }
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
+          locale: const Locale('zh', 'CN'),
+            localizationsDelegates: [
+    GlobalMaterialLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate, // 如果使用了Cupertino组件
+  ],
           home: AllMHpage(),
           theme: ThemeData(
             brightness: Brightness.light,

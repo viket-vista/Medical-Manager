@@ -181,24 +181,6 @@ Widget _buildDocumentPathSetting(SettingsModel settings, BuildContext context) {
   );
 }
 
-Widget _buildNotificationSwitch(SettingsModel settings) {
-  return Card(
-    child: SwitchListTile(
-      title: const Text('启用通知'),
-      subtitle: const Text('允许应用发送通知'),
-      value: settings.notificationsEnabled,
-      onChanged: (value) {
-        settings.setState(notificationsEnabled: value);
-        settings.updateSettings(notificationsEnabled: value);
-      },
-      secondary: Icon(
-        settings.notificationsEnabled
-            ? Icons.notifications_active
-            : Icons.notifications_off,
-      ),
-    ),
-  );
-}
 
 Widget _buildSelectAIMode(SettingsModel settings) {
   final Map<String, String> aiModels = {

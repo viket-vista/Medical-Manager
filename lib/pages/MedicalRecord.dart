@@ -10,6 +10,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:medicalmanager/pages/record.dart';
+import 'package:medicalmanager/pages/search.dart';
 
 class MedicalRecordPage extends StatefulWidget {
   const MedicalRecordPage({super.key});
@@ -115,6 +116,35 @@ class PageState extends State<MedicalRecordPage> {
               if (snapshot.hasData) {
                 return Row(
                   children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.search),
+                          onPressed: () {
+                            showSearch(
+                              context: context,
+                              delegate: MedicalRecordSearchDelegate(
+                                allMHEntry,
+                                context,
+                                (con, item) {
+                                  _navigateToRecord(con, item);
+                                },
+                                (con, item) {
+                                  _navigateToEdit(
+                                    con,
+                                    item,
+                                    allMHEntry.indexWhere(
+                                      ((element) =>
+                                          element['uuid'] == item['uuid']),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                     IconButton(
                       onPressed: () {
                         Navigator.push(
@@ -244,10 +274,10 @@ class PageState extends State<MedicalRecordPage> {
               Text("姓名: ${item['name']}"),
               Text("年龄: ${item['age']}"),
               Text(
-                "创建时间: ${DateTime.fromMillisecondsSinceEpoch(item['created_at']).toLocal()}",
+                "创建时间: ${DateTime.fromMillisecondsSinceEpoch(item['created_at']).toLocal().toString().substring(0, 23)}",
               ),
               Text(
-                '最后修改时间: ${DateTime.fromMillisecondsSinceEpoch(item['last_edit_at']).toLocal()}',
+                '最后修改时间: ${DateTime.fromMillisecondsSinceEpoch(item['last_edit_at']).toLocal().toString().substring(0, 23)}',
               ),
             ],
           ),
@@ -385,7 +415,7 @@ class MedicalRecordCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
       onSecondaryTap: onLongPress,
@@ -397,7 +427,7 @@ class MedicalRecordCard extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(10),
                 child: Text(
-                  "姓名:${item['name']} 年龄:${item['age']}",
+                  "姓名:${item['name'] == '' ? '无' : item['name']}\t年龄:${item['age']}",
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
