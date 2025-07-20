@@ -55,8 +55,11 @@ dependencies:
   path: ^1.9.1
   table_calendar: ^3.2.0
   toggle_switch: ^2.3.0
+  network_info_plus: ^6.1.4
+  lan_sharing: ^0.1.0
   flutter_localizations:
     sdk: flutter
+  logger: ^2.6.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
