@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 import 'dart:io';
 
 import '../models/settings_model.dart';
@@ -17,6 +18,8 @@ class SettingsPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
+          _buildDeviceName(settings, context),
+          const SizedBox(height: 16),
           _buildAutoDarkModeSwitch(settings, context),
           const SizedBox(height: 16),
           _buildDarkModeSwitch(settings, context),
@@ -25,6 +28,55 @@ class SettingsPage extends StatelessWidget {
           const SizedBox(height: 16),
           _buildSelectAIMode(settings),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDeviceName(SettingsModel settings, BuildContext context) {
+    return Card(
+      child: ListTile(
+        title: const Text('设备名称'),
+        subtitle: Text(settings.name == '' ? '未设置设备名称' : settings.name),
+        leading: const Icon(Icons.devices_rounded),
+        trailing: IconButton(
+          onPressed: () async {
+            final name = await showDialog<String>(
+              context: context,
+              builder: (context) {
+                String? input;
+                return AlertDialog(
+                  title: const Text('输入设备名称'),
+                  content: TextField(
+                    onChanged: ((value) => input = value),
+                    decoration: const InputDecoration(hintText: '请输入设备名称'),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, null),
+                      child: const Text('取消'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, input),
+                      child: const Text('确定'),
+                    ),
+                  ],
+                );
+              },
+            );
+            if (name != null && name.isNotEmpty) {
+              final uuid = Uuid().v4();
+              settings.setState(name: name, uuid: uuid);
+              settings.updateSettings(name: name, uuid: uuid);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('name 已更新为: $name\nuuid 已更新为: $uuid'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          },
+          icon: Icon(Icons.edit),
+        ),
       ),
     );
   }
@@ -64,7 +116,9 @@ class SettingsPage extends StatelessWidget {
       child: ListTile(
         title: const Text('API Key'),
         subtitle: Text(
-          settings.apiKey.isNotEmpty ? '*' * settings.apiKey.length : '未设置 API Key',
+          settings.apiKey.isNotEmpty
+              ? '*' * settings.apiKey.length
+              : '未设置 API Key',
           overflow: TextOverflow.ellipsis,
           maxLines: 1,
         ),
@@ -180,7 +234,6 @@ Widget _buildDocumentPathSetting(SettingsModel settings, BuildContext context) {
     ),
   );
 }
-
 
 Widget _buildSelectAIMode(SettingsModel settings) {
   final Map<String, String> aiModels = {

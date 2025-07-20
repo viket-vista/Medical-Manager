@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:medicalmanager/models/settings_model.dart';
 import 'dart:convert';
 import 'dart:async';
+import 'package:medicalmanager/modules/network_transfer.dart';
 
 class AIPage extends StatefulWidget {
   const AIPage({super.key});
@@ -29,6 +30,7 @@ class _AIPageState extends State<AIPage> {
   final ScrollController _scrollController = ScrollController(); // 用于自动滚动
   final ScrollController _scrollController1 = ScrollController(); // 用于推理响应的自动滚动
 
+  String receivedMessage = '';
   @override
   void initState() {
     super.initState();
@@ -255,6 +257,16 @@ class _AIPageState extends State<AIPage> {
                 ),
                 child: _buildResponseContent(),
               ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => CommunicationPage()),
+                );
+              },
+              child: Text('测试'),
             ),
           ],
         ),
