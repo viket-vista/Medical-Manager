@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:medicalmanager/tools/tcpDataTransfer.dart';
+import 'package:medicalmanager/tools/udpDiscovery.dart';
 import 'pages/home.dart';
 import 'package:provider/provider.dart';
 import 'models/settings_model.dart';
@@ -10,6 +12,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final settingsModel = SettingsModel();
   await settingsModel.init();
+  // final udpService = UdpDiscoveryService(settings: settingsModel);
+  // final tcpService = TcpFileTransfer();
+  // await udpService.init();
+  // tcpService.startServer();
   initializeDateFormatting().then((_) => runApp(ChangeNotifierProvider.value(value: settingsModel, child: MyApp())));
   
 }
