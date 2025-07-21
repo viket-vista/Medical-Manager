@@ -261,10 +261,7 @@ class _AIPageState extends State<AIPage> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => CommunicationPage()),
-                );
+                showDialog(context: context, builder: (context)=>CommunicationPage());
               },
               child: Text('测试'),
             ),

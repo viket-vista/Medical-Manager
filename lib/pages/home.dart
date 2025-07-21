@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:medicalmanager/pages/MedicalRecord.dart';
-import 'package:medicalmanager/pages/AI.dart';
-import 'package:medicalmanager/pages/Settings.dart';
+import 'package:medicalmanager/pages/medical_record_main_page.dart';
+import 'package:medicalmanager/pages/ai.dart';
+import 'package:medicalmanager/pages/settings.dart';
 
 class AllMHpage extends StatefulWidget {
   const AllMHpage({super.key});

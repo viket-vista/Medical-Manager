@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:medicalmanager/tools/JsonChange.dart';
+import 'package:medicalmanager/tools/json_change.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
@@ -7,7 +7,7 @@ import 'package:flutter/services.dart'
     show FilteringTextInputFormatter, Clipboard, ClipboardData;
 import 'package:provider/provider.dart';
 import 'package:medicalmanager/models/settings_model.dart';
-import 'ShowPhotos.dart';
+import 'show_photos.dart';
 import 'package:medicalmanager/tools/aitool.dart';
 import 'package:uuid/uuid.dart';
 import 'package:medicalmanager/tools/recorder.dart';

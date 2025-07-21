@@ -2,14 +2,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:medicalmanager/models/settings_model.dart';
-import 'package:medicalmanager/tools/JsonParse.dart';
+import 'package:medicalmanager/tools/json_parse.dart';
 import 'dart:convert';
 
 import 'package:medicalmanager/pages/editpage.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:medicalmanager/pages/record.dart';
+import 'package:medicalmanager/pages/routine_record.dart';
 import 'package:medicalmanager/pages/search.dart';
 
 class MedicalRecordPage extends StatefulWidget {

@@ -1,23 +1,40 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:medicalmanager/tools/tcpDataTransfer.dart';
-import 'package:medicalmanager/tools/udpDiscovery.dart';
+import 'package:medicalmanager/tools/tcp_data_transfer.dart';
+import 'package:medicalmanager/tools/udp_discovery.dart';
 import 'pages/home.dart';
 import 'package:provider/provider.dart';
 import 'models/settings_model.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:medicalmanager/models/udp_discovery_state.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final settingsModel = SettingsModel();
   await settingsModel.init();
-  // final udpService = UdpDiscoveryService(settings: settingsModel);
-  // final tcpService = TcpFileTransfer();
-  // await udpService.init();
-  // tcpService.startServer();
-  initializeDateFormatting().then((_) => runApp(ChangeNotifierProvider.value(value: settingsModel, child: MyApp())));
-  
+  final discoveryState = DiscoveryState();
+  final udpService = UdpDiscoveryService(
+    settings: settingsModel,
+    onDeviceDiscovered: discoveryState,
+  );
+  final tcpService = TcpFileTransfer();
+  unawaited(udpService.init());
+  tcpService.startServer();
+  initializeDateFormatting().then(
+    (_) => runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: settingsModel),
+          ChangeNotifierProvider.value(value: discoveryState),
+          Provider.value(value: udpService)
+        ],
+        child: MyApp(),
+      ),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -47,11 +64,11 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           locale: const Locale('zh', 'CN'),
-            localizationsDelegates: [
-    GlobalMaterialLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate, // 如果使用了Cupertino组件
-  ],
+          localizationsDelegates: [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate, // 如果使用了Cupertino组件
+          ],
           home: AllMHpage(),
           theme: ThemeData(
             brightness: Brightness.light,

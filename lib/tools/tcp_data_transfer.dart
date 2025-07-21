@@ -55,5 +55,4 @@ class TcpFileTransfer {
         .asFuture();
   }
 
-  // ...保留之前的文件传输方法...
 }

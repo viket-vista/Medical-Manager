@@ -3,14 +3,15 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:medicalmanager/models/settings_model.dart';
-import 'package:medicalmanager/tools/tcpDataTransfer.dart';
+import 'package:medicalmanager/tools/tcp_data_transfer.dart';
+import 'package:medicalmanager/models/udp_discovery_state.dart';
 
 class UdpDiscoveryService {
   static final int broadcastPort = 54321;
-  static final InternetAddress multicastAddr = InternetAddress('224.0.0.114');
   late RawDatagramSocket _socket;
   final SettingsModel settings;
-  final Function(Map<String, dynamic>) onDeviceDiscovered;
+  final DiscoveryState onDeviceDiscovered ;
+  int id = 0;
 
   UdpDiscoveryService({
     required this.settings,
@@ -19,6 +20,7 @@ class UdpDiscoveryService {
 
   Future<void> init() async {
     try {
+      onDeviceDiscovered.setInitializing(true);
       // 绑定到所有IPv4接口
       _socket = await RawDatagramSocket.bind(
         InternetAddress.anyIPv4,
@@ -27,7 +29,6 @@ class UdpDiscoveryService {
 
       _socket.broadcastEnabled = true;
       _socket.multicastHops = 32;
-      _socket.joinMulticast(multicastAddr);
 
       print('UDP服务已启动，监听端口: $broadcastPort');
 
@@ -39,6 +40,7 @@ class UdpDiscoveryService {
           }
         }
       });
+      onDeviceDiscovered.setInitializing(false);
     } catch (e) {
       print('UDP初始化失败: $e');
       rethrow;
@@ -49,12 +51,16 @@ class UdpDiscoveryService {
     try {
       final data = jsonDecode(utf8.decode(datagram.data));
       if (data['uuid'] != settings.uuid) {
+        if(id != (data['id'] is int?data['id']:int.parse(data['id']))){
+          id = (data['id'] is int?data['id']:int.parse(data['id']));
+          onDeviceDiscovered.clearDevices();
+        }
         final Map<String, dynamic> deviceInfo = {
           ...data,
           'ip': datagram.address.address,
           'port': datagram.port,
         };
-        onDeviceDiscovered(deviceInfo);
+        onDeviceDiscovered.addDevice(deviceInfo);
 
         // 自动响应发现请求
         if (data['status'] == 'discover') {
@@ -74,18 +80,20 @@ class UdpDiscoveryService {
       'id': id,
       'tcp_port': TcpFileTransfer.defaultPort,
     });
-    _socket.send(utf8.encode(response), address, port);
+    _socket.send(utf8.encode(response), InternetAddress('255.255.255.255'), port);
   }
 
   void broadcastDiscovery() {
+    id =  Random().nextInt(100);
+    onDeviceDiscovered.clearDevices();
     final msg = jsonEncode({
       'status': 'discover',
       'name': settings.name,
       'uuid': settings.uuid,
-      'id': Random().nextInt(100),
+      'id': id,
       'tcp_port': TcpFileTransfer.defaultPort,
     });
-    _socket.send(utf8.encode(msg), multicastAddr, broadcastPort);
+    _socket.send(utf8.encode(msg), InternetAddress('255.255.255.255'), broadcastPort);
   }
 
   void dispose() {

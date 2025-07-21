@@ -2,11 +2,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
-import 'RecordEdit.dart';
+import 'routine_record_edit.dart';
 import 'package:provider/provider.dart';
 import 'package:medicalmanager/models/settings_model.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:medicalmanager/tools/JsonParse.dart';
+import 'package:medicalmanager/tools/json_parse.dart';
 import 'package:toggle_switch/toggle_switch.dart';
 
 class RecordPage extends StatefulWidget {
