@@ -34,10 +34,6 @@ class _RecordPageState extends State<RecordPage>
     _format = CalendarFormat.week;
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
 
   Future<void> _initFolder() async {
     final dir = Provider.of<SettingsModel>(context, listen: false).docPath;
@@ -401,7 +397,7 @@ class _RecordPageState extends State<RecordPage>
     );
   }
 
-  openEditPage(FileSystemEntity fil) {
+  void openEditPage(FileSystemEntity fil) {
     Navigator.push(
       context,
       MaterialPageRoute(

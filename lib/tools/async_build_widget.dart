@@ -6,19 +6,19 @@ class AsyncDropdownSingleSelect extends StatefulWidget {
   final ValueChanged<String?> onChanged;
 
   const AsyncDropdownSingleSelect({
-    Key? key,
+    super.key,
     required this.items,
     required this.loadInitialValue,
     this.labelText = "请选择",
     required this.onChanged,
-  }) : super(key: key);
+  });
 
   @override
-  _AsyncDropdownSingleSelectState createState() =>
-      _AsyncDropdownSingleSelectState();
+  AsyncDropdownSingleSelectState createState() =>
+      AsyncDropdownSingleSelectState();
 }
 
-class _AsyncDropdownSingleSelectState
+class AsyncDropdownSingleSelectState
     extends State<AsyncDropdownSingleSelect> {
   String? selectedValue;
 
@@ -71,17 +71,17 @@ class AsyncTextField extends StatefulWidget {
   final TextEditingController controller;
 
   const AsyncTextField({
-    Key? key,
+    super.key,
     required this.fetchInitialValue,
     this.labelText = "请输入",
     required this.controller,
-  }) : super(key: key);
+  });
 
   @override
-  _AsyncTextFieldState createState() => _AsyncTextFieldState();
+  AsyncTextFieldState createState() => AsyncTextFieldState();
 }
 
-class _AsyncTextFieldState extends State<AsyncTextField> {
+class AsyncTextFieldState extends State<AsyncTextField> {
   bool _isLoaded = false;
 
   @override

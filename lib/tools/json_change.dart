@@ -1,3 +1,5 @@
+// ignore_for_file: non_constant_identifier_names
+
 dynamic JsonChange(List<dynamic> path,dynamic inputjson,dynamic newdata){
   if (path.length<=1){
     if (inputjson is List&&path[0] is int&&inputjson.length>path[0]){

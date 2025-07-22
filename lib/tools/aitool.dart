@@ -1,8 +1,6 @@
 import 'package:dio/dio.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'package:provider/provider.dart';
-import 'package:medicalmanager/models/settings_model.dart';
 
 class DeepSeekApi {
   static const String _baseUrl = 'https://api.deepseek.com';
@@ -52,8 +50,7 @@ class DeepSeekApi {
                 onDone: controller.close,
                 onError: controller.addError,
               );
-        })
-        .catchError(controller.addError);
+        });
 
     return controller.stream;
     } else {

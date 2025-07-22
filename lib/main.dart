@@ -10,6 +10,7 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:medicalmanager/models/udp_discovery_state.dart';
+import 'package:medicalmanager/models/global.dart' as globals;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +21,7 @@ void main() async {
     settings: settingsModel,
     onDeviceDiscovered: discoveryState,
   );
-  final tcpService = TcpFileTransfer();
+  final tcpService = TcpFileTransfer();   
   unawaited(udpService.init());
   tcpService.startServer();
   initializeDateFormatting().then(
@@ -29,7 +30,8 @@ void main() async {
         providers: [
           ChangeNotifierProvider.value(value: settingsModel),
           ChangeNotifierProvider.value(value: discoveryState),
-          Provider.value(value: udpService)
+          Provider.value(value: udpService),
+          ChangeNotifierProvider.value(value: tcpService)
         ],
         child: MyApp(),
       ),
@@ -61,7 +63,7 @@ class MyApp extends StatelessWidget {
             brightness: Brightness.dark,
           );
         }
-        return MaterialApp(
+        return MaterialApp(navigatorKey: globals.navigatorKey, 
           debugShowCheckedModeBanner: false,
           locale: const Locale('zh', 'CN'),
           localizationsDelegates: [

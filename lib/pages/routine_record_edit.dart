@@ -21,7 +21,7 @@ class _RecordPageState extends State<RecordEdit> {
   bool isPlaying = false;
   String filName = '';
   final Player player = Player();
-  ScrollController _scrollController = ScrollController();
+  final ScrollController _scrollController = ScrollController();
   Duration recordingDuration = Duration.zero;
   Duration totalDuration = Duration.zero;
   List<FileSystemEntity> audioFiles = [];
@@ -54,7 +54,6 @@ class _RecordPageState extends State<RecordEdit> {
 
   @override
   Widget build(BuildContext context) {
-    // TODO: implement build
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -283,7 +282,7 @@ class _RecordPageState extends State<RecordEdit> {
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
-        return Container(child: Text('to be developed'));
+        return  Text('to be developed');
       },
     );
   }

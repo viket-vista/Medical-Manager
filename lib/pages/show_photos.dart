@@ -1,10 +1,10 @@
+// ignore_for_file: avoid_print
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:medicalmanager/models/settings_model.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:photo_view/photo_view.dart';
 import 'package:path/path.dart' as path; // 添加路径处理包
 
 class ImageGalleryPage extends StatefulWidget {
@@ -220,7 +220,7 @@ class _ImageGalleryPageState extends State<ImageGalleryPage> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, value) {
         if (!didPop) {
           _exitWithValue(); // 处理手势退出
         }
@@ -325,8 +325,6 @@ class _ImageGalleryPageState extends State<ImageGalleryPage> {
 
   // 添加对话框方法（与之前相同但适配网格视图）
   Future<void> _showImageActionDialog(BuildContext context, int index) async {
-    final imagePath = path.join(_imageDirectory!.path, _images[index]);
-
     final result = await showDialog<String>(
       context: context,
       builder: (BuildContext context) {

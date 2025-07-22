@@ -1,7 +1,11 @@
 // ignore: file_names
+// ignore_for_file: avoid_print
+
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:medicalmanager/models/settings_model.dart';
+import 'package:medicalmanager/modules/network_transfer.dart';
 import 'package:medicalmanager/tools/json_parse.dart';
 import 'dart:convert';
 
@@ -11,6 +15,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:medicalmanager/pages/routine_record.dart';
 import 'package:medicalmanager/pages/search.dart';
+import 'package:medicalmanager/tools/zip_tools.dart';
 
 class MedicalRecordPage extends StatefulWidget {
   const MedicalRecordPage({super.key});
@@ -24,9 +29,11 @@ class MedicalRecordPage extends StatefulWidget {
 class PageState extends State<MedicalRecordPage> {
   List<Map<String, dynamic>> allMHEntry = [];
   late bool deletemode;
+  late final SettingsModel settings;
   @override
   void initState() {
     super.initState();
+    settings = Provider.of<SettingsModel>(context, listen: false);
     loaddata();
     deletemode = false;
   }
@@ -69,7 +76,6 @@ class PageState extends State<MedicalRecordPage> {
   }
 
   Future<File> get _localFile async {
-    final settings = Provider.of<SettingsModel>(context, listen: false);
     final directory = settings.docPath;
     return File('$directory/All_MH_Entry.json');
   }
@@ -86,7 +92,7 @@ class PageState extends State<MedicalRecordPage> {
     writeData(allMHEntry);
   }
 
-  void addData(var newitem) {
+  void addData(dynamic newitem) {
     setState(() {
       allMHEntry.add(newitem);
     });
@@ -94,10 +100,11 @@ class PageState extends State<MedicalRecordPage> {
   }
 
   Future<void> deleteItem(int index) async {
-    final settings = Provider.of<SettingsModel>(context, listen: false);
     final directory = settings.docPath;
     File("$directory/data/${allMHEntry[index]["uuid"]}.json").delete();
-    Directory('$directory/data/${allMHEntry[index]['uuid']}/').delete(recursive: true);
+    Directory(
+      '$directory/data/${allMHEntry[index]['uuid']}/',
+    ).delete(recursive: true);
     setState(() {
       allMHEntry.removeAt(index);
     });
@@ -243,6 +250,14 @@ class PageState extends State<MedicalRecordPage> {
               onTap: () {
                 Navigator.pop(context); // 关闭底部菜单
                 _navigateToEditOrigin(context, item, index);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share),
+              title: const Text('分享'),
+              onTap: () {
+                Navigator.pop(context); // 关闭底部菜单
+                _shareData(item);
               },
             ),
             ListTile(
@@ -393,6 +408,20 @@ class PageState extends State<MedicalRecordPage> {
       }
     }
   }
+
+  void _shareData(dynamic item) async {
+    await compressDirectoryToZip(
+      sourceDir: Directory('${settings.docPath}/data/${item['uuid']}'),
+      zipFile: File('${settings.docPath}/data/${item['uuid']}.zip'),
+    );
+    showModalBottomSheet(
+      context: context,
+      builder: (context) =>
+          CommunicationPage(data: {'type': 'record', 'data': jsonEncode(item)}),
+    );
+  }
+
+  
 }
 
 class MedicalRecordCard extends StatelessWidget {

@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -5,6 +7,7 @@ import 'dart:math';
 import 'package:medicalmanager/models/settings_model.dart';
 import 'package:medicalmanager/tools/tcp_data_transfer.dart';
 import 'package:medicalmanager/models/udp_discovery_state.dart';
+import 'package:logger/logger.dart';
 
 class UdpDiscoveryService {
   static final int broadcastPort = 54321;
@@ -29,8 +32,9 @@ class UdpDiscoveryService {
 
       _socket.broadcastEnabled = true;
       _socket.multicastHops = 32;
+      _socket.joinMulticast(InternetAddress('226.123.112.23'));
 
-      print('UDP服务已启动，监听端口: $broadcastPort');
+      Logger().i('UDP服务已启动,监听端口: $broadcastPort');
 
       _socket.listen((RawSocketEvent event) {
         if (event == RawSocketEvent.read) {
@@ -42,15 +46,14 @@ class UdpDiscoveryService {
       });
       onDeviceDiscovered.setInitializing(false);
     } catch (e) {
-      print('UDP初始化失败: $e');
-      rethrow;
+      Logger().e('UDP服务启动失败: $e');
     }
   }
 
   void _handleIncomingPacket(Datagram datagram) {
     try {
       final data = jsonDecode(utf8.decode(datagram.data));
-      if (data['uuid'] != settings.uuid) {
+      if (data['uuid'] != settings.uuid&&onDeviceDiscovered.devices.indexWhere((element) => element['uuid'] == data['uuid']) == -1) {
         if(id != (data['id'] is int?data['id']:int.parse(data['id']))){
           id = (data['id'] is int?data['id']:int.parse(data['id']));
           onDeviceDiscovered.clearDevices();
@@ -68,7 +71,7 @@ class UdpDiscoveryService {
         }
       }
     } catch (e) {
-      print('数据包解析错误: $e');
+      Logger().e('处理UDP数据包失败: $e');
     }
   }
 
@@ -80,7 +83,9 @@ class UdpDiscoveryService {
       'id': id,
       'tcp_port': TcpFileTransfer.defaultPort,
     });
-    _socket.send(utf8.encode(response), InternetAddress('255.255.255.255'), port);
+    _socket.send(utf8.encode(response), InternetAddress('255.255.255.255'), broadcastPort);
+    _socket.send(utf8.encode(response), address, port);
+    Logger().i('发送响应到${address.address}:$port: $response');
   }
 
   void broadcastDiscovery() {
@@ -94,6 +99,7 @@ class UdpDiscoveryService {
       'tcp_port': TcpFileTransfer.defaultPort,
     });
     _socket.send(utf8.encode(msg), InternetAddress('255.255.255.255'), broadcastPort);
+    Logger().i('发送广播: $msg');
   }
 
   void dispose() {

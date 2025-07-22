@@ -1,4 +1,7 @@
+// ignore_for_file: non_constant_identifier_names
+
 import 'package:flutter/material.dart';
+import 'package:medicalmanager/modules/network_transfer.dart';
 import 'package:medicalmanager/tools/json_change.dart';
 import 'dart:io';
 import 'dart:convert';
@@ -88,6 +91,10 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
     name.text = MedicalRecord['name'];
     age.text = MedicalRecord['age'];
     zhusu.text = MedicalRecord['主诉'];
+
+    _loadAudioFiles(
+      '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/入院记录/',
+    );
     player.init(() {
       setState(() {
         isPlaying = false;
@@ -216,7 +223,6 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
     await file.writeAsString(jsonStr);
     widget.onSave(returnjson);
   }
-
 
   Widget buildBasicInfo() {
     Widget NAME = TextField(
@@ -1462,17 +1468,10 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
   }
 
   ValueNotifier<bool> fcremovemode = ValueNotifier(false);
-  static const List<String> FC_MENU_ITEMS = [
-    '时间',
-    '医院',
-    '项目',
-    '结果',
-    '其他',
-    '图片',
-  ];
+  static const List<String> fcMenuItems = ['时间', '医院', '项目', '结果', '其他', '图片'];
   void buildFucha() {
     fucha.clear();
-    Widget _buildFcItem(String id) {
+    Widget buildFcItem(String id) {
       final record = MedicalRecord['外院辅助检查'].firstWhere(
         (item) => item['id'] == id,
       );
@@ -1483,9 +1482,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
             valueListenable: datetime,
             builder: (index, value, child) {
               return Text(
-                record[FC_MENU_ITEMS[0]] == ''
-                    ? '辅助检查'
-                    : record[FC_MENU_ITEMS[0]],
+                record[fcMenuItems[0]] == '' ? '辅助检查' : record[fcMenuItems[0]],
               );
             },
           ),
@@ -1497,7 +1494,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                 return IconButton(
                   icon: const Icon(Icons.remove, size: 20),
                   onPressed: () {
-                    for (String i in record[FC_MENU_ITEMS[5]]) {
+                    for (String i in record[fcMenuItems[5]]) {
                       final docPath = settings.docPath;
                       final filePath = path.join(
                         docPath,
@@ -1529,15 +1526,14 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                 return IconButton(
                   onPressed: () {
                     try {
-                      record[FC_MENU_ITEMS[5]] =
-                          record[FC_MENU_ITEMS[5]] is List
-                          ? record[FC_MENU_ITEMS[5]]
+                      record[fcMenuItems[5]] = record[fcMenuItems[5]] is List
+                          ? record[fcMenuItems[5]]
                           : [];
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => ImageGalleryPage(
-                            imageData: record[FC_MENU_ITEMS[5]],
+                            imageData: record[fcMenuItems[5]],
                             uuid: widget.item?['uuid'],
                             name: MedicalRecord['name'],
                             onreturn: (newitem) {
@@ -1545,7 +1541,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                                 MedicalRecord['外院辅助检查'][MedicalRecord['外院辅助检查']
                                         .indexWhere(
                                           (item) => item['id'] == id,
-                                        )][FC_MENU_ITEMS[5]] =
+                                        )][fcMenuItems[5]] =
                                     newitem;
                               });
                               saveData();
@@ -1591,7 +1587,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                 ),
               ),
             ),
-            for (int j = 1; j < FC_MENU_ITEMS.length - 1; j++)
+            for (int j = 1; j < fcMenuItems.length - 1; j++)
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -1599,10 +1595,10 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                 ),
                 child: TextField(
                   controller: TextEditingController(
-                    text: record[FC_MENU_ITEMS[j]],
+                    text: record[fcMenuItems[j]],
                   ),
                   decoration: InputDecoration(
-                    labelText: FC_MENU_ITEMS[j],
+                    labelText: fcMenuItems[j],
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
                   onChanged: (value) {
@@ -1611,7 +1607,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                           MedicalRecord['外院辅助检查'].indexWhere(
                             (item) => item['id'] == id,
                           ),
-                        ]][FC_MENU_ITEMS[j]] =
+                        ]][fcMenuItems[j]] =
                         value;
                   },
                 ),
@@ -1646,7 +1642,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                   '图片': [],
                 });
                 setState(() {
-                  fucha.add(_buildFcItem(id));
+                  fucha.add(buildFcItem(id));
                 });
               },
               tooltip: '添加辅查',
@@ -1676,7 +1672,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
         if (!MedicalRecord['外院辅助检查'][index].containsKey('id')) {
           MedicalRecord['外院辅助检查'][index]['id'] = Uuid().v4();
         }
-        return _buildFcItem(MedicalRecord['外院辅助检查'][index]['id']);
+        return buildFcItem(MedicalRecord['外院辅助检查'][index]['id']);
       }).toList().cast<Widget>().toList(),
     );
   }
@@ -1834,88 +1830,123 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
           Text('录音列表', style: TextStyle(fontWeight: FontWeight.bold)),
           ...List.generate(audioFiles.length, (index) {
             final file = audioFiles[index];
-            final fileName = file.path.split(Platform.pathSeparator).last;
-            return Card(
-              child: Padding(
-                padding: const EdgeInsets.all(_cardPadding),
-                child: Column(
-                  children: [
-                    Row(
+            final fileName = path.basenameWithoutExtension(file.path);
+            return InkWell(
+              onLongPress: () {
+                showModalBottomSheet(
+                  context: context,
+                  builder: (context) => SafeArea(
+                    child: Column(
                       children: [
-                        IconButton(
-                          icon: Icon(Icons.play_arrow),
-                          onPressed: () {
-                            bool temp = isPlaying;
-                            setState(() {
-                              filName = file.path;
-                              isPlaying = true;
-                            });
-                            WakelockPlus.disable();
-                            player.reset();
-                            if (!temp) {
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                double newPosition =
-                                    _scrollController.offset + 100;
-                                _scrollController.animateTo(
-                                  newPosition, // 使用 clamp 确保值在范围内
-                                  duration: Duration(milliseconds: 200),
-                                  curve: Curves.linear,
-                                );
-                              });
-                            }
-                          },
-                        ),
-
-                        Padding(
-                          padding: EdgeInsets.all(8.0),
-                          child: InkWell(
-                            onTap: () {
-                              showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  final TextEditingController textController =
-                                      TextEditingController(text: fileName);
-                                  return AlertDialog(
-                                    title: Text('修改文件名'),
-                                    content: TextField(
-                                      controller: textController,
-                                      decoration: InputDecoration(
-                                        hintText: '输入新的文件名',
-                                      ),
-                                    ),
-                                    actions: <Widget>[
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.of(context).pop();
-                                        },
-                                        child: Text('取消'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () {
-                                          renameAudio(
-                                            index,
-                                            textController.text,
-                                          );
-                                          Navigator.of(context).pop();
-                                        },
-                                        child: Text('确定'),
-                                      ),
-                                    ],
-                                  );
+                        ListTile(
+                          title: Text('分享'),
+                          onTap: () async {
+                            Navigator.pop(context);
+                            showModalBottomSheet(
+                              context: context,
+                              builder: (context) => CommunicationPage(
+                                data: {
+                                  'type': 'file',
+                                  'data': file.path,
+                                  'topath': path.relative(
+                                    file.path,
+                                    from: settings.docPath,
+                                  ),
+                                  'length': file.statSync().size,
                                 },
-                              );
-                            },
-                            child: Text(fileName),
-                          ),
-                        ),
-                        Spacer(),
-                        IconButton(
-                          icon: Icon(Icons.delete),
-                          onPressed: () => deleteAudio(index),
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
-                  ],
+                  ),
+                );
+              },
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(_cardPadding),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.play_arrow),
+                            onPressed: () {
+                              bool temp = isPlaying;
+                              setState(() {
+                                filName = file.path;
+                                isPlaying = true;
+                              });
+                              WakelockPlus.disable();
+                              player.reset();
+                              if (!temp) {
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
+                                  double newPosition =
+                                      _scrollController.offset + 100;
+                                  _scrollController.animateTo(
+                                    newPosition, // 使用 clamp 确保值在范围内
+                                    duration: Duration(milliseconds: 200),
+                                    curve: Curves.linear,
+                                  );
+                                });
+                              }
+                            },
+                          ),
+
+                          Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: InkWell(
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    final TextEditingController textController =
+                                        TextEditingController(text: fileName);
+                                    return AlertDialog(
+                                      title: Text('修改文件名'),
+                                      content: TextField(
+                                        controller: textController,
+                                        decoration: InputDecoration(
+                                          hintText: '输入新的文件名',
+                                        ),
+                                      ),
+                                      actions: <Widget>[
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.of(context).pop();
+                                          },
+                                          child: Text('取消'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
+                                            renameAudio(
+                                              index,
+                                              textController.text,
+                                            );
+                                            Navigator.of(context).pop();
+                                          },
+                                          child: Text('确定'),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
+                              child: Text(fileName),
+                            ),
+                          ),
+                          Spacer(),
+                          IconButton(
+                            icon: Icon(Icons.delete),
+                            onPressed: () => deleteAudio(index),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -1926,7 +1957,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
   }
 
   Future<void> _analyseJson() async {
-    DeepSeekApi _api = DeepSeekApi(apiKey: settings.apiKey);
+    DeepSeekApi api = DeepSeekApi(apiKey: settings.apiKey);
     Map temp = {...MedicalRecord}; // 创建副本避免修改原始数据
 
     // 清理已有的AI输出
@@ -1944,7 +1975,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
     ];
 
     try {
-      final stream = await _api.chatCompletions(
+      final stream = await api.chatCompletions(
         messages: messages,
         model: settings.model,
         stream: true,
@@ -1979,6 +2010,33 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
             Text('AI生成的入院记录', style: TextStyle(fontWeight: FontWeight.bold)),
             if (MedicalRecord['ai输出'] != null)
               InkWell(
+                onLongPress: () {
+                  showModalBottomSheet(
+                    context: context,
+                    builder: (context) => SafeArea(
+                      child: Column(
+                        children: [
+                          ListTile(
+                            leading: Icon(Icons.share),
+                            title: Text('分享'),
+                            onTap: () async {
+                              Navigator.pop(context);
+                              showModalBottomSheet(
+                                context: context,
+                                builder: (context) => CommunicationPage(
+                                  data: {
+                                    'type': 'text',
+                                    'data': MedicalRecord['ai输出'],
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
                 onTap: () {
                   Navigator.push(
                     context,
@@ -2115,10 +2173,10 @@ class AIDialog extends StatefulWidget {
   const AIDialog({super.key, required this.stream, required this.onAccept});
 
   @override
-  _AIDialogState createState() => _AIDialogState();
+  AIDialogState createState() => AIDialogState();
 }
 
-class _AIDialogState extends State<AIDialog> {
+class AIDialogState extends State<AIDialog> {
   late TextEditingController _controller;
 
   StringBuffer responseBuffer = StringBuffer();

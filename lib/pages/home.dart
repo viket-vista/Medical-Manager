@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:medicalmanager/pages/medical_record_main_page.dart';
 import 'package:medicalmanager/pages/ai.dart';
 import 'package:medicalmanager/pages/settings.dart';
+import 'package:medicalmanager/tools/tcp_data_transfer.dart';
+import 'package:provider/provider.dart';
 
 class AllMHpage extends StatefulWidget {
   const AllMHpage({super.key});
@@ -33,6 +35,8 @@ class _AllMHpageState extends State<AllMHpage> {
   @override
   void initState() {
     super.initState();
+    final tcpFileTransfer = Provider.of<TcpFileTransfer>(context, listen: false);
+    tcpFileTransfer.initializeSettings(context);
   }
 
   @override

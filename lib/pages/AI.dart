@@ -12,10 +12,10 @@ class AIPage extends StatefulWidget {
   const AIPage({super.key});
 
   @override
-  _AIPageState createState() => _AIPageState();
+  AIPageState createState() => AIPageState();
 }
 
-class _AIPageState extends State<AIPage> {
+class AIPageState extends State<AIPage> {
   final TextEditingController _messageController = TextEditingController();
   late DeepSeekApi _api;
   String _response = '';
@@ -261,7 +261,7 @@ class _AIPageState extends State<AIPage> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
-                showDialog(context: context, builder: (context)=>CommunicationPage());
+                showModalBottomSheet(context: context, builder: (context)=>CommunicationPage(data: ''));
               },
               child: Text('测试'),
             ),

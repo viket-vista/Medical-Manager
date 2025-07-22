@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:medicalmanager/pages/editpage.dart';
 
 class MedicalRecordSearchDelegate extends SearchDelegate<Map<String, dynamic>> {
   final List<Map<String, dynamic>> allMHEntry;
