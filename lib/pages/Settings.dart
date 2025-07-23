@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:medicalmanager/tools/zip_tools.dart';
+import 'package:path/path.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -22,11 +25,29 @@ class SettingsPage extends StatelessWidget {
           const SizedBox(height: 16),
           _buildAutoDarkModeSwitch(settings, context),
           const SizedBox(height: 16),
-          _buildDarkModeSwitch(settings, context),
-          const SizedBox(height: 16),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (settings.autoDarkMode == false)
+                  _buildDarkModeSwitch(settings, context),
+                if (settings.autoDarkMode == false) const SizedBox(height: 16),
+              ],
+            ),
+          ),
+          if (Platform.isWindows || Platform.isLinux || Platform.isMacOS)
+            _buildWorkDirectorySetting(settings, context),
+          if (Platform.isWindows || Platform.isLinux || Platform.isMacOS)
+            const SizedBox(height: 16),
           _buildApiKeySetting(settings, context),
           const SizedBox(height: 16),
           _buildSelectAIMode(settings),
+          const SizedBox(height: 16),
+          _buildBackupButton(settings, context),
+          
+          const SizedBox(height: 32),
+          _buildAboutButton(settings, context),
         ],
       ),
     );
@@ -165,98 +186,307 @@ class SettingsPage extends StatelessWidget {
       ),
     );
   }
-}
 
-Widget _buildDarkModeSwitch(SettingsModel settings, BuildContext context) {
-  return Card(
-    child: Opacity(
-      opacity: settings.autoDarkMode ? 0.5 : 1.0,
-      child: SwitchListTile(
-        title: const Text('深色模式'),
-        subtitle: settings.autoDarkMode
-            ? const Text('当前由系统控制')
-            : const Text('切换应用的主题模式'),
-        value: settings.darkMode,
-        onChanged: settings.autoDarkMode
-            ? null
-            : (value) {
-                settings.setState(darkMode: value);
-                settings.updateSettings(darkMode: value);
-                // 主题切换逻辑应在应用的顶层处理，这里只更新设置
-                // 可以通过 Provider、Bloc 或其他状态管理在 MaterialApp 处响应设置变化
-                // 或提示用户重启应用以应用主题变化
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('主题设置已更改'),
-                    duration: Duration(seconds: 2),
+  Card _buildBackupButton(SettingsModel settings, BuildContext context) {
+    return Card(
+      child: ListTile(
+        title: const Text('备份还原'),
+        subtitle: const Text('备份/还原/重置'),
+        leading: const Icon(Icons.refresh),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.backup),
+              onPressed: () async {
+                Uint8List a = Uint8List.fromList(
+                  await compressDirectoryByte(
+                    sourceDir: Directory('${settings.docPath}/data'),
+                    additionalFiles: ['${settings.docPath}/All_MH_Entry.json'],
+                    root: settings.docPath,
                   ),
                 );
+                await FilePicker.platform.saveFile(
+                  bytes: a,
+                  dialogTitle: '请选择保存位置',
+                  fileName: 'Backup.zip',
+                );
               },
-        secondary: Icon(settings.darkMode ? Icons.dark_mode : Icons.light_mode),
+            ),
+            IconButton(
+              onPressed: () async {
+                int state = 0;
+                await showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: const Text('确认还原'),
+                      content: const Text('确定要还原所有记录吗？\n 你可以选择还原所有记录，或者添加记录'),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            state = 2;
+                            Navigator.pop(context);
+                          },
+                          child: const Text('还原所有'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            state = 3;
+                            Navigator.pop(context);
+                          },
+                          child: const Text('添加记录'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            state = 1;
+                            Navigator.pop(context);
+                          },
+                          child: const Text('取消'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+                if (state == 1) {
+                  return;
+                } else {
+                  FilePickerResult? result = await FilePicker.platform
+                      .pickFiles();
+                  if (result != null) {
+                    if (state == 2) {
+                      Directory('${settings.docPath}/data').existsSync()
+                          ? Directory(
+                              '${settings.docPath}/data',
+                            ).deleteSync(recursive: true)
+                          : null;
+                      File('${settings.docPath}/All_MH_Entry.json').existsSync()
+                          ? File(
+                              '${settings.docPath}/All_MH_Entry.json',
+                            ).deleteSync()
+                          : null;
+                      String filePath = result.files.single.path!;
+                      File file = File(filePath);
+                      Stream<List<int>> fileStream = file.openRead();
+                      decompressZipStreamToDirectoryChunked(
+                        zipStream: fileStream,
+                        desDir: Directory(settings.docPath),
+                      );
+                    } else if (state == 3) {}
+                  }
+                }
+              },
+              icon: Icon(Icons.restore),
+            ),
+            IconButton(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: const Text('确认删除'),
+                      content: const Text('确定要删除所有记录吗？'),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Directory('${settings.docPath}/data').existsSync()
+                                ? Directory(
+                                    '${settings.docPath}/data',
+                                  ).deleteSync(recursive: true)
+                                : null;
+                            File(
+                                  '${settings.docPath}/All_MH_Entry.json',
+                                ).existsSync()
+                                ? File(
+                                    '${settings.docPath}/All_MH_Entry.json',
+                                  ).deleteSync()
+                                : null;
+                            Navigator.pop(context);
+                          },
+                          child: const Text('删除'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          child: const Text('取消'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+              icon: Icon(Icons.refresh),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-Widget _buildDocumentPathSetting(SettingsModel settings, BuildContext context) {
-  return Card(
-    child: ListTile(
-      title: const Text('文档存储路径'),
-      subtitle: Text(
-        settings.docPath.isNotEmpty ? settings.docPath : '未设置文档存储路径',
-        overflow: TextOverflow.ellipsis,
-        maxLines: 1,
-      ),
-      leading: const Icon(Icons.folder),
-      trailing: IconButton(
-        icon: const Icon(Icons.edit),
-        onPressed: () async {
-          String? selectedDirectory;
-          if (Platform.isAndroid) {
-            final directory = await getApplicationDocumentsDirectory();
-            selectedDirectory = directory.path;
-          } else {
+  _buildWorkDirectorySetting(SettingsModel settings, BuildContext context) {
+    return Card(
+      child: ListTile(
+        title: const Text('工作目录'),
+        subtitle: Text(
+          settings.docPath.isNotEmpty ? settings.docPath : '未设置工作目录',
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
+        leading: const Icon(Icons.work),
+        trailing: IconButton(
+          icon: const Icon(Icons.edit),
+          onPressed: () async {
+            String? selectedDirectory;
             selectedDirectory = await FilePicker.platform.getDirectoryPath();
-          }
+            if (selectedDirectory != null) {
+              settings.setState(docPath: selectedDirectory);
+            }
+          },
+        ),
+      ),
+    );
+  }
 
-          if (selectedDirectory != null) {
-            settings.setState(docPath: selectedDirectory);
-            settings.updateSettings(docPath: selectedDirectory);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('文档路径已更新为: $selectedDirectory'),
-                duration: const Duration(seconds: 2),
+  _buildAboutButton(SettingsModel settings, BuildContext context) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        title: const Text(
+          '关于应用',
+          style: TextStyle(fontWeight: FontWeight.w500),
+        ),
+        leading: const Icon(Icons.info_outline, color: Colors.blue),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-            );
-          }
-        },
-      ),
-    ),
-  );
-}
-
-Widget _buildSelectAIMode(SettingsModel settings) {
-  final Map<String, String> aiModels = {
-    "DeepSeek-V3": 'deepseek-chat',
-    "DeepSeek-R1": 'deepseek-reasoner',
-  };
-  return Card(
-    child: ListTile(
-      title: const Text("选择模型"),
-      subtitle: const Text('选择deepseek版本', maxLines: 1),
-      leading: const Icon(Icons.android),
-      trailing: DropdownButton<String>(
-        value: settings.model,
-        items: aiModels.entries.map((entry) {
-          return DropdownMenuItem<String>(
-            value: entry.value,
-            child: Text(entry.key),
+              title: const Text('关于应用'),
+              content: const Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('医疗管理助手 v1.0'),
+                  SizedBox(height: 8),
+                  Text('功能：医疗数据管理'),
+                  SizedBox(height: 8),
+                  Text('开发者：邱玉梓'),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('确定'),
+                ),
+              ],
+            ),
           );
-        }).toList(),
-        onChanged: (value) {
-          settings.updateSettings(model: value);
         },
       ),
-    ),
-  );
+    );
+  }
+
+  Widget _buildDarkModeSwitch(SettingsModel settings, BuildContext context) {
+    return Card(
+      child: Opacity(
+        opacity: settings.autoDarkMode ? 0.5 : 1.0,
+        child: SwitchListTile(
+          title: const Text('深色模式'),
+          subtitle: settings.autoDarkMode
+              ? const Text('当前由系统控制')
+              : const Text('切换应用的主题模式'),
+          value: settings.darkMode,
+          onChanged: settings.autoDarkMode
+              ? null
+              : (value) {
+                  settings.setState(darkMode: value);
+                  settings.updateSettings(darkMode: value);
+                  // 主题切换逻辑应在应用的顶层处理，这里只更新设置
+                  // 可以通过 Provider、Bloc 或其他状态管理在 MaterialApp 处响应设置变化
+                  // 或提示用户重启应用以应用主题变化
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('主题设置已更改'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+          secondary: Icon(
+            settings.darkMode ? Icons.dark_mode : Icons.light_mode,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDocumentPathSetting(
+    SettingsModel settings,
+    BuildContext context,
+  ) {
+    return Card(
+      child: ListTile(
+        title: const Text('文档存储路径'),
+        subtitle: Text(
+          settings.docPath.isNotEmpty ? settings.docPath : '未设置文档存储路径',
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
+        leading: const Icon(Icons.folder),
+        trailing: IconButton(
+          icon: const Icon(Icons.edit),
+          onPressed: () async {
+            String? selectedDirectory;
+            if (Platform.isAndroid) {
+              final directory = await getApplicationDocumentsDirectory();
+              selectedDirectory = directory.path;
+            } else {
+              selectedDirectory = await FilePicker.platform.getDirectoryPath();
+            }
+
+            if (selectedDirectory != null) {
+              settings.setState(docPath: selectedDirectory);
+              settings.updateSettings(docPath: selectedDirectory);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('文档路径已更新为: $selectedDirectory'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectAIMode(SettingsModel settings) {
+    final Map<String, String> aiModels = {
+      "DeepSeek-V3": 'deepseek-chat',
+      "DeepSeek-R1": 'deepseek-reasoner',
+    };
+    return Card(
+      child: ListTile(
+        title: const Text("选择模型"),
+        subtitle: const Text('选择deepseek版本', maxLines: 1),
+        leading: const Icon(Icons.android),
+        trailing: DropdownButton<String>(
+          value: settings.model,
+          items: aiModels.entries.map((entry) {
+            return DropdownMenuItem<String>(
+              value: entry.value,
+              child: Text(entry.key),
+            );
+          }).toList(),
+          onChanged: (value) {
+            settings.updateSettings(model: value);
+          },
+        ),
+      ),
+    );
+  }
 }

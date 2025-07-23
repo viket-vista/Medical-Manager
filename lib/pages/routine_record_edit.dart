@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:medicalmanager/pages/show_photos.dart';
 import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
 import 'package:medicalmanager/models/settings_model.dart';
@@ -9,15 +10,23 @@ import 'package:medicalmanager/tools/player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 class RecordEdit extends StatefulWidget {
-  final FileSystemEntity file;
+  final File file;
   final String name;
-  const RecordEdit({super.key, required this.file, required this.name});
+  final String uuid;
+  const RecordEdit({
+    super.key,
+    required this.file,
+    required this.name,
+    required this.uuid,
+  });
   @override
   State<StatefulWidget> createState() => _RecordPageState();
 }
 
 class _RecordPageState extends State<RecordEdit> {
+  //录音与播放
   bool isRecording = false;
+  late final Recorder recorder;
   bool isPlaying = false;
   String filName = '';
   final Player player = Player();
@@ -25,11 +34,18 @@ class _RecordPageState extends State<RecordEdit> {
   Duration recordingDuration = Duration.zero;
   Duration totalDuration = Duration.zero;
   List<FileSystemEntity> audioFiles = [];
-  String uuid = '';
-  late final Recorder recorder;
+  //初始化变量
+  late Map<String, dynamic> json;
+  late final String recordDir;
+  late final SettingsModel settings;
+  //初始化界面
+  late List<Widget> usemedicines;
   @override
   void initState() {
     super.initState();
+    json = jsonDecode((widget.file as File).readAsStringSync());
+    settings = Provider.of<SettingsModel>(context, listen: false);
+    recordDir = '${settings.docPath}/data/${widget.uuid}/record/${json['id']}/';
     recorder = Recorder(
       onProgress: (duration) {
         setState(() {
@@ -52,6 +68,43 @@ class _RecordPageState extends State<RecordEdit> {
     });
   }
 
+  void initJson() {
+    if (!json.containsKey('photos')) {
+      json['photos'] = [];
+    }
+  }
+
+  Widget photos() {
+    return IconButton(
+      onPressed: () {
+        try {
+          json['photos'] = json['photos'] is List ? json['photos'] : [];
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ImageGalleryPage(
+                imageData: json['photos'],
+                uuid: widget.uuid,
+                name: widget.name,
+                onreturn: (newitem) {
+                  setState(() {
+                    json['photos'] = newitem;
+                  });
+                  saveData();
+                },
+              ),
+            ),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('图片库加载失败: $e')));
+        }
+      },
+      icon: Icon(Icons.photo_library),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -65,6 +118,13 @@ class _RecordPageState extends State<RecordEdit> {
               buildMenu();
             },
             icon: Icon(Icons.more_horiz),
+          ),
+          IconButton(
+            onPressed: () {
+              saveData();
+              Navigator.pop(context);
+            },
+            icon: Icon(Icons.save),
           ),
         ],
       ),
@@ -112,9 +172,7 @@ class _RecordPageState extends State<RecordEdit> {
       );
       if (!delete) return;
       await File(audioFiles[index].path).delete();
-      final json = jsonDecode((widget.file as File).readAsStringSync());
-      final String recordDir =
-          '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/${json['id']}/';
+
       await _loadAudioFiles(recordDir);
     }
 
@@ -250,10 +308,6 @@ class _RecordPageState extends State<RecordEdit> {
   }
 
   Widget _buildRecordButtonSection(BuildContext context) {
-    final json = jsonDecode((widget.file as File).readAsStringSync());
-    final String recordDir =
-        '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/${json['id']}/';
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAudioFiles(recordDir);
     });
@@ -282,8 +336,13 @@ class _RecordPageState extends State<RecordEdit> {
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
-        return  Text('to be developed');
+        return Text('to be developed');
       },
     );
+  }
+
+  void saveData() {
+    final jsonStr = jsonEncode(json);
+    widget.file.writeAsString(jsonStr);
   }
 }

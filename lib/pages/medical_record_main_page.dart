@@ -1,7 +1,6 @@
 // ignore: file_names
 // ignore_for_file: avoid_print
 
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:medicalmanager/models/settings_model.dart';
@@ -10,6 +9,7 @@ import 'package:medicalmanager/tools/json_parse.dart';
 import 'dart:convert';
 
 import 'package:medicalmanager/pages/editpage.dart';
+import 'package:medicalmanager/tools/tcp_data_transfer.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -30,6 +30,8 @@ class PageState extends State<MedicalRecordPage> {
   List<Map<String, dynamic>> allMHEntry = [];
   late bool deletemode;
   late final SettingsModel settings;
+  late final TcpFileTransfer transferModel;
+  late bool _wasTransfering;
   @override
   void initState() {
     super.initState();
@@ -85,9 +87,12 @@ class PageState extends State<MedicalRecordPage> {
     await file.writeAsString(json.encode(newData));
   }
 
-  void updatedata(int index, var updatedItem) {
+  void updatedata(String uuid, var updatedItem) {
     setState(() {
-      allMHEntry[index] = updatedItem;
+      allMHEntry[allMHEntry.indexWhere(
+            ((element) => element['uuid'] == uuid),
+          )] =
+          updatedItem;
     });
     writeData(allMHEntry);
   }
@@ -99,14 +104,18 @@ class PageState extends State<MedicalRecordPage> {
     writeData(allMHEntry);
   }
 
-  Future<void> deleteItem(int index) async {
+  Future<void> deleteItem(String uuid) async {
     final directory = settings.docPath;
-    File("$directory/data/${allMHEntry[index]["uuid"]}.json").delete();
-    Directory(
-      '$directory/data/${allMHEntry[index]['uuid']}/',
-    ).delete(recursive: true);
+    File("$directory/data/$uuid.json").existsSync()
+        ? File("$directory/data/$uuid.json").delete()
+        : null;
+    Directory('$directory/data/$uuid/').existsSync()
+        ? Directory('$directory/data/$uuid/').delete(recursive: true)
+        : null;
     setState(() {
-      allMHEntry.removeAt(index);
+      allMHEntry.removeAt(
+        allMHEntry.indexWhere(((element) => element['uuid'] == uuid)),
+      );
     });
     writeData(allMHEntry);
   }
@@ -187,26 +196,41 @@ class PageState extends State<MedicalRecordPage> {
         ],
       ),
       body: allMHEntry.isEmpty
-          ? const Center(
-              child: Text(
-                "暂无记录",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ? RefreshIndicator(
+              onRefresh: _handleRefresh,
+              child: SingleChildScrollView(
+                physics: AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height,
+                  child: const Center(
+                    child: Text(
+                      "暂无记录",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             )
-          : ListView.builder(
-              padding: const EdgeInsets.all(8),
-              itemCount: allMHEntry.length,
-              itemBuilder: (BuildContext context, int index) {
-                final item = allMHEntry[index];
-                return MedicalRecordCard(
-                  item: item,
-                  deletemode: deletemode,
-                  onTap: () => _navigateToRecord(context, item),
-                  onLongPress: () => _showOptionsMenu(context, item, index),
-                  onEdit: () => _navigateToEdit(context, item, index),
-                  onDelete: () => deleteItem(index),
-                );
-              },
+          : RefreshIndicator(
+              onRefresh: _handleRefresh,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(8),
+                itemCount: allMHEntry.length,
+                itemBuilder: (BuildContext context, int index) {
+                  final item = allMHEntry[index];
+                  return MedicalRecordCard(
+                    item: item,
+                    deletemode: deletemode,
+                    onTap: () => _navigateToRecord(context, item),
+                    onLongPress: () => _showOptionsMenu(context, item, index),
+                    onEdit: () => _navigateToEdit(context, item, index),
+                    onDelete: () => deleteItem(allMHEntry[index]['uuid']),
+                  );
+                },
+              ),
             ),
     );
   }
@@ -265,7 +289,7 @@ class PageState extends State<MedicalRecordPage> {
               title: const Text('删除'),
               onTap: () {
                 Navigator.pop(context); // 关闭底部菜单
-                deleteItem(index);
+                deleteItem(allMHEntry[index]['uuid']);
               },
             ),
           ],
@@ -323,8 +347,9 @@ class PageState extends State<MedicalRecordPage> {
           builder: (context) => EditPage(
             medicalRecord1: mr,
             item: item,
-            onSave: (updatedItem) => updatedata(index, updatedItem),
-            onDelete: () => deleteItem(index),
+            onSave: (updatedItem) =>
+                updatedata(allMHEntry[index]['uuid'], updatedItem),
+            onDelete: () => deleteItem(allMHEntry[index]['uuid']),
           ),
         ),
       );
@@ -421,7 +446,9 @@ class PageState extends State<MedicalRecordPage> {
     );
   }
 
-  
+  Future<void> _handleRefresh() async {
+    await loaddata();
+  }
 }
 
 class MedicalRecordCard extends StatelessWidget {

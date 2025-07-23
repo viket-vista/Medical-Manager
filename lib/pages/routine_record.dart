@@ -34,10 +34,9 @@ class _RecordPageState extends State<RecordPage>
     _format = CalendarFormat.week;
   }
 
-
   Future<void> _initFolder() async {
     final dir = Provider.of<SettingsModel>(context, listen: false).docPath;
-    folder = Directory('$dir/${widget.uuid}');
+    folder = Directory('$dir/data/${widget.uuid}');
     if (!(await folder.exists())) {
       await folder.create(recursive: true);
     }
@@ -222,14 +221,23 @@ class _RecordPageState extends State<RecordPage>
 
   void deleteItem(File file) async {
     if (file.existsSync()) {
-      await file.delete();
       try {
         final jsonall = JsonParse(file.readAsStringSync());
         final item = jsonall.parse();
-        Directory dir = Directory(path.join(folder.path, 'record', item['id']));
+        if (item.contains('photos') && item['photos'].length > 0) {
+          for (String photos in item['photos']) {
+            File(
+              '${folder.path}/data/${widget.uuid}/photos/$photos',
+            ).deleteSync();
+          }
+        }
+        Directory dir = Directory(
+          '${folder.path}/data/${widget.uuid}/record/${item['id']}',
+        );
         if (dir.existsSync()) {
           dir.deleteSync(recursive: true);
         }
+        await file.delete();
       } catch (e) {
         return;
       }
@@ -401,7 +409,8 @@ class _RecordPageState extends State<RecordPage>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => RecordEdit(file: fil, name: widget.name),
+        builder: (_) =>
+            RecordEdit(file: fil as File, name: widget.name, uuid: widget.uuid),
       ),
     );
   }

@@ -25,6 +25,10 @@ class TcpFileTransfer with ChangeNotifier {
   bool get isIncomingConnection => _isIncomingConnection;
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   late SettingsModel settings;
+  bool _isTransfering = false;
+
+bool get isTransfering => _isTransfering;
+
   Future<ServerSocket> startServer() async {
     try {
       _server = await ServerSocket.bind(InternetAddress.anyIPv4, defaultPort);
@@ -217,6 +221,7 @@ class TcpFileTransfer with ChangeNotifier {
   }
 
   Future<void> handleSocketData(Socket socket) async {
+    _isTransfering = true;
     var phase = ReadPhase.header;
     var state = RecordState.header;
     var expectedLength = 0;
@@ -365,6 +370,8 @@ class TcpFileTransfer with ChangeNotifier {
         Logger().i('Socket closed');
         subscription.cancel();
         disconnect(socket);
+        _isTransfering = false;
+        notifyListeners();
       },
       cancelOnError: true,
     );

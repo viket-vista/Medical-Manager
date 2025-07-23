@@ -52,14 +52,13 @@ class SettingsModel extends ChangeNotifier {
   // 加载设置的方法（可以从本地存储加载）
   Future<void> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    String? dir = Platform.isAndroid
-        ? (await getApplicationDocumentsDirectory()).path
-        : await FilePicker.platform.getDirectoryPath();
     // 这里应该是从SharedPreferences或其他存储加载设置的逻辑
     //darkmode
     setState(
       darkMode: prefs.getBool(_keyDarkMode) ?? false,
-      docPath: prefs.getString(_keyDocPath) ?? dir!,
+      docPath: prefs.getString(_keyDocPath) ?? (Platform.isAndroid
+          ? (await getApplicationDocumentsDirectory()).path
+          : await FilePicker.platform.getDirectoryPath()),
       notificationsEnabled: prefs.getBool(_keyNotifications) ?? true,
       apiKey: prefs.getString(_keyApi) ?? '',
       model: prefs.getString(_keyModel) ?? 'deepseek-chat',
