@@ -43,7 +43,7 @@ class _RecordPageState extends State<RecordEdit> {
   @override
   void initState() {
     super.initState();
-    json = jsonDecode((widget.file as File).readAsStringSync());
+    json = jsonDecode((widget.file).readAsStringSync());
     settings = Provider.of<SettingsModel>(context, listen: false);
     recordDir = '${settings.docPath}/data/${widget.uuid}/record/${json['id']}/';
     recorder = Recorder(
@@ -66,6 +66,7 @@ class _RecordPageState extends State<RecordEdit> {
         curve: Curves.ease,
       );
     });
+    initJson();
   }
 
   void initJson() {
@@ -75,7 +76,7 @@ class _RecordPageState extends State<RecordEdit> {
   }
 
   Widget photos() {
-    return IconButton(
+    return ElevatedButton(
       onPressed: () {
         try {
           json['photos'] = json['photos'] is List ? json['photos'] : [];
@@ -101,7 +102,10 @@ class _RecordPageState extends State<RecordEdit> {
           ).showSnackBar(SnackBar(content: Text('图片库加载失败: $e')));
         }
       },
-      icon: Icon(Icons.photo_library),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [Icon(Icons.photo_library), Text('图片')],
+      ),
     );
   }
 
@@ -320,6 +324,8 @@ class _RecordPageState extends State<RecordEdit> {
           children: [
             if (Platform.isAndroid || Platform.isIOS)
               recorder.buildRecorderButton(context, recordDir),
+            SizedBox(width: 6),
+            photos(),
             SizedBox(width: 6),
             ElevatedButton.icon(
               icon: Icon(Icons.start),

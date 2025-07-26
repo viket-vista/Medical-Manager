@@ -280,8 +280,7 @@ class _RecordPageState extends State<RecordPage>
       ),
     );
     if (selected == null) return;
-    final now = DateTime.now();
-    final formattedTime = now.toIso8601String().substring(0, 10);
+    final formattedTime = _selectedDay.toIso8601String().substring(0, 10);
     File file = File('${folder.path}/${formattedTime}_$selected.json');
     if (file.existsSync()) {
       int i = 0;

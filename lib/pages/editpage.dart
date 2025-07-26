@@ -1,6 +1,7 @@
 // ignore_for_file: non_constant_identifier_names
 
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 import 'package:medicalmanager/modules/network_transfer.dart';
 import 'package:medicalmanager/tools/json_change.dart';
 import 'dart:io';
@@ -41,6 +42,7 @@ class EditPage extends StatefulWidget {
 }
 
 class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
+  late List<TextEditingController> allController;
   late int now;
   late String uuid;
   Map<dynamic, List<dynamic>> array = {};
@@ -49,10 +51,8 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
   TextEditingController name = TextEditingController();
   TextEditingController age = TextEditingController();
   TextEditingController zhusu = TextEditingController();
-  TextEditingController dabian = TextEditingController();
-  TextEditingController xiaobian = TextEditingController();
-  TextEditingController tizhong = TextEditingController();
-  TextEditingController shuimian = TextEditingController();
+  late List<TextEditingController> commonSituController;
+  static const List<String> items = ['大便', '小便', '精神', '体重'];
   // 家族史相关 controller 缓存
   late TextEditingController _jiashuFumuController;
   late TextEditingController _jiashuYichuanController;
@@ -80,6 +80,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    allController = [];
     MedicalRecord = widget.medicalRecord1;
     now = DateTime.now().millisecondsSinceEpoch;
     if (widget.item != null && widget.item!['uuid'] != null) {
@@ -91,7 +92,11 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
     name.text = MedicalRecord['name'];
     age.text = MedicalRecord['age'];
     zhusu.text = MedicalRecord['主诉'];
-
+    commonSituController = List.generate(4, (index) {
+      return TextEditingController(
+        text: MedicalRecord['现病史']['一般情况'][items[index]],
+      );
+    });
     _loadAudioFiles(
       '${Provider.of<SettingsModel>(context, listen: false).docPath}/data/$uuid/record/入院记录/',
     );
@@ -107,18 +112,6 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
         curve: Curves.ease,
       );
     });
-    dabian.text = MedicalRecord['现病史']['一般情况']['大便'] == ''
-        ? '无异常'
-        : MedicalRecord['现病史']['一般情况']['大便'];
-    xiaobian.text = MedicalRecord['现病史']['一般情况']['小便'] == ''
-        ? '无异常'
-        : MedicalRecord['现病史']['一般情况']['小便'];
-    shuimian.text = MedicalRecord['现病史']['一般情况']['精神'] == ''
-        ? '无异常'
-        : MedicalRecord['现病史']['一般情况']['精神'];
-    tizhong.text = MedicalRecord['现病史']['一般情况']['体重'] == ''
-        ? '无异常'
-        : MedicalRecord['现病史']['一般情况']['体重'];
     // 初始化家族史 controller
     _jiashuFumuController = TextEditingController(
       text: MedicalRecord['家族史']?['父母、兄弟姐妹'] ?? '',
@@ -134,7 +127,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
     _buildJZJL();
     buildZhengzhuang();
     jiwangshi = [];
-    buildjiwangshi();
+    _buildJiwangshi();
     gerenshi = [];
     _switch = [];
     buildgerenshi();
@@ -182,13 +175,15 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
     name.dispose();
     age.dispose();
     zhusu.dispose();
-    dabian.dispose();
-    xiaobian.dispose();
-    tizhong.dispose();
-    shuimian.dispose();
     _jiashuFumuController.dispose();
     _jiashuYichuanController.dispose();
     _jiashuManxingController.dispose();
+    for (var a in allController) {
+      a.dispose();
+    }
+    for (var a in commonSituController) {
+      a.dispose();
+    }
     for (var controllers in array.entries) {
       controllers.key.dispose();
     }
@@ -301,43 +296,6 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
     );
   }
 
-  Widget buildXianbingshi() {
-    const List<String> items = ['大便', '小便', '精神', '体重'];
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.start,
-      children: [
-        Card(
-          clipBehavior: Clip.antiAlias,
-          child: Padding(
-            padding: const EdgeInsets.all(_cardPadding),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text("现病史"),
-                ...Zhengzhuang,
-                ...jiuzhenjilu,
-                ...List.generate(4, (index) {
-                  return Padding(
-                    padding: EdgeInsets.all(_inputPadding),
-                    child: TextField(
-                      controller: TextEditingController(
-                        text: MedicalRecord['现病史']['一般情况'][items[index]],
-                      ),
-                      decoration: InputDecoration(labelText: items[index]),
-                      onChanged: (value) {
-                        MedicalRecord['现病史']['一般情况'][items[index]] = value;
-                      },
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   ValueNotifier<bool> zzremovemode = ValueNotifier(false);
   ValueNotifier<bool> title = ValueNotifier(false);
   void buildZhengzhuang() {
@@ -359,8 +317,8 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
 
       return Card(
         elevation: 1,
+        key: Key(id),
         child: ExpansionTile(
-          key: Key(id),
           title: ValueListenableBuilder(
             valueListenable: title,
             builder: (index, value, child) {
@@ -380,10 +338,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                         // 更新 UI 列表
                         setState(() {
                           Zhengzhuang.removeWhere(
-                            (widget) =>
-                                widget is ExpansionTile &&
-                                widget.title is Text &&
-                                widget.title.toString().contains(id),
+                            (widget) => widget.key.toString().contains(id),
                           );
                         });
                       },
@@ -394,12 +349,14 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
           ),
           children: [
             ...List.generate(8, (index1) {
+              TextEditingController tempController = TextEditingController(
+                text: symptom[menu[index1]],
+              );
+              allController.add(tempController);
               return Padding(
                 padding: const EdgeInsets.all(_inputPadding),
                 child: TextField(
-                  controller: TextEditingController(
-                    text: symptom[menu[index1]],
-                  ),
+                  controller: tempController,
                   decoration: InputDecoration(labelText: menu[index1]),
                   onChanged: (value) {
                     symptom[menu[index1]] = value;
@@ -499,8 +456,8 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
 
       return Card(
         elevation: 1,
+        key: Key(id),
         child: ExpansionTile(
-          key: Key(id),
           title: ValueListenableBuilder(
             valueListenable: datetime,
             builder: (index, value, child) {
@@ -520,9 +477,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                         // 更新 UI 列表
                         setState(() {
                           jiuzhenjilu.removeWhere(
-                            (widget) =>
-                                widget is ExpansionTile &&
-                                widget.key.toString().contains(id),
+                            (widget) => widget.key.toString().contains(id),
                           );
                         });
                       },
@@ -562,12 +517,14 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
             ),
             Column(
               children: List.generate(5, (index1) {
+                TextEditingController tempController = TextEditingController(
+                  text: record[zljg[index1]],
+                );
+                allController.add(tempController);
                 return Padding(
                   padding: const EdgeInsets.all(_inputPadding),
                   child: TextField(
-                    controller: TextEditingController(
-                      text: record[zljg[index1]],
-                    ),
+                    controller: tempController,
                     decoration: InputDecoration(labelText: zljg[index1]),
                     onChanged: (value) {
                       record[zljg[index1]] = value;
@@ -643,188 +600,230 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
     );
   }
 
-  void addjws(String key) {
-    Map<String, dynamic> menu = {
-      '慢性病': ['病名', '确诊时间', '确诊地址', '服用药物', '控制情况', '发病情况', '其他'],
-      '传染病': ['病名', '确诊时间', '确诊地址', '服用药物', '控制情况', '发病情况', '其他'],
-      '手术': ['手术时间', '病名', '手术名称'],
-      '外伤': ['外伤时间', '外伤部位'],
-      '输血': 'list',
-      '过敏史': 'list',
-    };
-    if (!menu.containsKey(key)) return;
-    int len = MedicalRecord['既往史'][key].length;
-    if (menu[key] is List) {
-      final List<String> fields = menu[key];
-      JsonAdd(['既往史', key, len, 'id'], MedicalRecord, Uuid().v4());
-      for (var field in fields) {
-        JsonAdd(['既往史', key, len, field], MedicalRecord, '');
+  Map<String, List<Widget>> SG = {'过敏史': [], "输血": []};
+  List<Widget> guominshi = [];
+  static const Map<String, dynamic> jiWangShi = {
+    '慢性病': ['病名', '确诊时间', '确诊地址', '服用药物', '控制情况', '发病情况', '其他'],
+    '传染病': ['病名', '确诊时间', '确诊地址', '服用药物', '控制情况', '发病情况', '其他'],
+    '手术': ['手术时间', '病名', '手术名称'],
+    '外伤': ['外伤时间', '外伤部位'],
+    '输血': [],
+    '过敏史': [],
+  };
+  ValueNotifier<bool> jwsTitle = ValueNotifier(false);
+  ValueNotifier<bool> jwsDeleteMode = ValueNotifier(false);
+  ValueNotifier<bool> SGChanged = ValueNotifier(false);
+
+  void _buildJiwangshi() {
+    Widget buildItemCard(String type, String id) {
+      List selectedType = jiWangShi[type];
+      List<TextEditingController> tempControllers = [];
+      for (String item in selectedType) {
+        TextEditingController tempController = TextEditingController(
+          text:
+              MedicalRecord['既往史'][type][MedicalRecord['既往史'][type].indexWhere(
+                (item) => item['id'] == id,
+              )][item],
+        );
+        tempControllers.add(tempController);
       }
-    } else if (menu[key] is String) {
-      JsonAdd(['既往史', key, len], MedicalRecord, '');
+      allController.addAll(tempControllers);
+      dynamic titletext =
+          MedicalRecord['既往史'][type][MedicalRecord['既往史'][type].indexWhere(
+                (item) => item['id'] == id,
+              )]
+              .entries
+              .first;
+      return Card(
+        key: Key(id),
+        child: ExpansionTile(
+          title: ValueListenableBuilder(
+            valueListenable: jwsTitle,
+            builder: (context, value, child) {
+              return Text(MedicalRecord['既往史'][type][MedicalRecord['既往史'][type].indexWhere(
+                (item) => item['id'] == id,
+              )]
+              .entries
+              .first.value);
+            },
+          ),
+          trailing: ValueListenableBuilder(
+            valueListenable: jwsDeleteMode,
+            builder: (context, value, child) {
+              if (value) {
+                return IconButton(
+                  onPressed: () {
+                    setState(() {
+                      jiwangshi.removeWhere(
+                        (item) => item.key.toString().contains(id),
+                      );
+                    });
+                    MedicalRecord['既往史'][type].removeWhere(
+                      (item) => item['id'] == id,
+                    );
+                  },
+                  icon: Icon(Icons.remove, color: Colors.red),
+                );
+              } else {
+                return SizedBox.shrink();
+              }
+            },
+          ),
+          children: [
+            ...List.generate(selectedType.length, (index) {
+              return Padding(
+                padding: const EdgeInsets.all(_inputPadding),
+                child: TextField(
+                  controller: tempControllers[index],
+                  decoration: InputDecoration(labelText: selectedType[index]),
+                  onChanged: (value) {
+                    if (selectedType[index] == titletext.key) {
+                      jwsTitle.value = !jwsTitle.value;
+                    }
+                    MedicalRecord['既往史'][type][MedicalRecord['既往史'][type]
+                            .indexWhere(
+                              (item) => item['id'] == id,
+                            )][selectedType[index]] =
+                        value;
+                  },
+                ),
+              );
+            }),
+          ],
+        ),
+      );
     }
 
-    setState(() {
-      jiwangshi.clear();
-      buildjiwangshi();
-    });
-  }
-
-  void buildjiwangshi() {
-    Map<String, dynamic> menu = MedicalRecord['既往史'];
-    List<dynamic> temp1 = [];
-    for (var entry in menu.entries) {
-      List<dynamic> temp = [];
-      if (entry.value is List) {
-        if (entry.value.isEmpty) {
-        } else if (entry.value[0] is Map) {
-          for (int j = 0; j < entry.value.length; j++) {
-            late List<TextEditingController> any = [];
-            if (entry.value[j] is Map) {
-              for (var k in entry.value[j].entries) {
-                TextEditingController text = TextEditingController();
-                text.text = k.value;
-                any.add(text);
-              }
-            }
-            temp.add(
-              ExpansionTile(
-                title: Row(
-                  children: [
-                    Text(MedicalRecord['既往史'][entry.key][j].values.toList()[0]),
-                    Spacer(),
-                    IconButton(
-                      onPressed: () {
-                        MedicalRecord['既往史'][entry.key].removeAt(j);
-                        setState(() {
-                          jiwangshi.clear();
-                          buildjiwangshi();
-                        });
-                      },
-                      icon: Icon(Icons.remove),
-                    ),
-                  ],
-                ),
-                children: [
-                  for (int k = 0; k < entry.value[j].length; k++)
-                    Padding(
-                      padding: EdgeInsets.all(_inputPadding),
-                      child: TextField(
-                        controller: any[k],
-                        decoration: InputDecoration(
-                          labelText: MedicalRecord['既往史'][entry.key][j].keys
-                              .toList()[k],
-                        ),
-                        onChanged: (value) {
-                          MedicalRecord = JsonChange(
-                            [
-                              '既往史',
-                              entry.key,
-                              j,
-                              MedicalRecord['既往史'][entry.key][j].keys
-                                  .toList()[k],
-                            ],
-                            MedicalRecord,
-                            value,
-                          );
-                        },
-                      ),
-                    ),
-                ],
+    Widget buildItemEdit(String type, String id) {
+      TextEditingController tempController = TextEditingController(
+        text:
+            MedicalRecord['既往史'][type][MedicalRecord['既往史'][type].indexWhere(
+              (item) => item['id'] == id,
+            )]['name'],
+      );
+      allController.add(tempController);
+      return Padding(
+        padding: const EdgeInsets.all(_inputPadding),
+        child: Row(
+          key: Key(id),
+          children: [
+            Expanded(
+              child: TextField(
+                controller: tempController,
+                onChanged: (value) {
+                  MedicalRecord['既往史'][type][MedicalRecord['既往史'][type]
+                          .indexWhere((item) => item['id'] == id)]['name'] =
+                      value;
+                },
               ),
-            );
-          }
-        } else if (entry.value[0] is String) {
-          for (int k = 0; k < entry.value.length; k++) {
-            TextEditingController text = TextEditingController();
-            text.text = entry.value[k];
-            temp.add(
-              Row(
-                children: [
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.all(_inputPadding),
-                      child: TextField(
-                        controller: text,
-                        onChanged: (value) {
-                          MedicalRecord = JsonChange(
-                            ['既往史', entry.key, k],
-                            MedicalRecord,
-                            value,
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  IconButton(
+            ),
+            ValueListenableBuilder(
+              valueListenable: jwsDeleteMode,
+              builder: (context, value, child) {
+                if (value) {
+                  return IconButton(
                     onPressed: () {
-                      MedicalRecord['既往史'][entry.key].removeAt(k);
-                      setState(() {
-                        jiwangshi.clear();
-                        buildjiwangshi();
-                      });
+                      SG[type]!.removeWhere(
+                        (item) => item.key.toString().contains(id),
+                      );
+                      SGChanged.value = !SGChanged.value;
+
+                      MedicalRecord['既往史'][type].removeWhere(
+                        (item) => item['id'] == id,
+                      );
                     },
-                    icon: Icon(Icons.remove),
-                  ),
-                ],
+                    icon: Icon(Icons.remove, color: Colors.red),
+                  );
+                } else {
+                  return SizedBox.shrink();
+                }
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
+    jiwangshi.add(
+      ListTile(
+        title: Center(child: Text('既往史')),
+        trailing: ValueListenableBuilder(
+          valueListenable: jwsDeleteMode,
+          builder: (context, value, child) {
+            return IconButton(
+              onPressed: () {
+                jwsDeleteMode.value = !value;
+              },
+              icon: Icon(
+                Icons.remove,
+                color: jwsDeleteMode.value ? Colors.red : null,
               ),
             );
-          }
-        }
-        temp1.add(
-          ExpansionTile(
-            title: Row(
-              children: [
-                Text(entry.key),
-                Spacer(),
-                IconButton(
+          },
+        ),
+      ),
+    );
+    jiWangShi.forEach((key, value) {
+      if (key != '输血' && key != '过敏史') {
+        jiwangshi.add(
+          ListTile(
+            key: Key(key),
+            title: Text(key),
+            trailing: IconButton(
+              onPressed: () {
+                String id = Uuid().v4();
+                MedicalRecord['既往史'][key].add({
+                  for (var item in value) item: '',
+                  'id': id,
+                });
+                setState(() {
+                  jiwangshi.insert(
+                    jiwangshi.indexWhere(
+                              (item) =>
+                                  item is ListTile &&
+                                  item.title.toString().contains(key),
+                            ) +
+                            MedicalRecord['既往史'][key].length
+                        as int,
+                    buildItemCard(key, id),
+                  );
+                });
+              },
+              icon: Icon(Icons.add),
+            ),
+          ),
+        );
+        jiwangshi.addAll(
+          List.generate(MedicalRecord['既往史'][key].length, (index) {
+            return buildItemCard(key, MedicalRecord['既往史'][key][index]['id']);
+          }),
+        );
+      } else {
+        SG[key] = List.generate(MedicalRecord['既往史'][key].length, (index) {
+          return buildItemEdit(key, MedicalRecord['既往史'][key][index]['id']);
+        });
+        jiwangshi.add(
+          ValueListenableBuilder(
+            valueListenable: SGChanged,
+            builder: (context, val, child) {
+              return ExpansionTile(
+                title: Text(key),
+                trailing: IconButton(
                   onPressed: () {
-                    addjws(entry.key);
+                    String id = Uuid().v4();
+                    MedicalRecord['既往史'][key].add({'name': '', 'id': id});
+                    SG[key]!.add(buildItemEdit(key, id));
+                    SGChanged.value = !val;
                   },
                   icon: Icon(Icons.add),
                 ),
-              ],
-            ),
-            children: [...temp],
-          ),
-        );
-      } else if (entry.value is String) {
-        var text = TextEditingController();
-        temp1.add(
-          Padding(
-            padding: EdgeInsets.all(_inputPadding),
-            child: TextField(
-              controller: text,
-              decoration: InputDecoration(labelText: entry.key),
-              onChanged: (value) {
-                MedicalRecord = JsonChange(
-                  ['既往史', entry.key],
-                  MedicalRecord,
-                  value,
-                );
-              },
-            ),
+                children: SG[key]!,
+              );
+            },
           ),
         );
       }
-    }
-    jiwangshi.add(
-      Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text("既往史"),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(_cardPadding),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [...temp1, Divider()],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    });
   }
 
   void buildgerenshi() {
@@ -832,6 +831,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
     _switch.add(gerenshi1['吸烟']['enabled']);
     _switch.add(gerenshi1['饮酒']['enabled']);
     _switch.add(gerenshi1['成瘾物']['enabled']);
+    List<TextEditingController> tempControllers = [];
     Map<String, dynamic> text = {};
     if (_switch[0]) {
       if (gerenshi1['吸烟'].length <= 1) {
@@ -841,6 +841,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
           false,
           TextEditingController(text: ''),
         ];
+
         JsonAdd(['个人史', '吸烟', '时长'], MedicalRecord, '');
         JsonAdd(['个人史', '吸烟', '频率'], MedicalRecord, '');
         JsonAdd(['个人史', '吸烟', '戒烟'], MedicalRecord, false);
@@ -877,6 +878,27 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
         text['成瘾物'] = [TextEditingController(text: gerenshi1['成瘾物']['种类'])];
       }
     }
+    for (var element in text.entries) {
+      if (element.value is List) {
+        for (var j in element.value) {
+          if (j is TextEditingController) {
+            allController.add(j);
+          }
+        }
+      }
+    }
+    TextEditingController tempController = TextEditingController(
+      text: MedicalRecord['个人史']['生活史'],
+    );
+    allController.add(tempController);
+    TextEditingController tempController1 = TextEditingController(
+      text: MedicalRecord['个人史']['职业'],
+    );
+    allController.add(tempController1);
+    TextEditingController tempController2 = TextEditingController(
+      text: MedicalRecord['个人史']['其他'],
+    );
+    allController.add(tempController2);
     gerenshi.add(Text('个人史'));
     gerenshi.add(
       Card(
@@ -1068,9 +1090,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                   bottom: _inputPadding,
                 ),
                 child: TextField(
-                  controller: TextEditingController(
-                    text: MedicalRecord['个人史']['生活史'],
-                  ),
+                  controller: tempController,
                   decoration: InputDecoration(labelText: '生活史'),
                   onChanged: (value) {
                     MedicalRecord = JsonChange(
@@ -1087,9 +1107,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                   bottom: _inputPadding,
                 ),
                 child: TextField(
-                  controller: TextEditingController(
-                    text: MedicalRecord['个人史']['职业'],
-                  ),
+                  controller: tempController1,
                   decoration: InputDecoration(labelText: '职业'),
                   onChanged: (value) {
                     MedicalRecord = JsonChange(
@@ -1106,9 +1124,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                   bottom: _inputPadding,
                 ),
                 child: TextField(
-                  controller: TextEditingController(
-                    text: MedicalRecord['个人史']['其他'],
-                  ),
+                  controller: tempController2,
                   decoration: InputDecoration(labelText: '其他'),
                   onChanged: (value) {
                     MedicalRecord = JsonChange(
@@ -1170,6 +1186,27 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
     TextEditingController zn = TextEditingController(
       text: MedicalRecord['婚育史']['生育']['子女健康情况'],
     );
+    TextEditingController tempController = TextEditingController(
+      text: MedicalRecord['婚育史']['结婚']['详情'],
+    );
+    TextEditingController tempController1 = TextEditingController(
+      text: MedicalRecord['婚育史']['生育']['生育儿子数'].toString(),
+    );
+    allController.add(tempController1);
+    TextEditingController tempController3 = TextEditingController(
+      text: MedicalRecord['婚育史']['生育']['生育女儿数'].toString(),
+    );
+    allController.add(tempController3);
+    allController.add(tempController);
+    allController.add(zn);
+    TextEditingController tempController4 = TextEditingController(
+      text: MedicalRecord['婚育史']['生育']['孕'].toString(),
+    );
+    allController.add(tempController4);
+    TextEditingController tempController5 = TextEditingController(
+      text: MedicalRecord['婚育史']['生育']['产'].toString(),
+    );
+    allController.add(tempController5);
     hunyushi.add(
       Card(
         child: Padding(
@@ -1188,9 +1225,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                         child: Padding(
                           padding: const EdgeInsets.all(_inputPadding),
                           child: TextField(
-                            controller: TextEditingController(
-                              text: MedicalRecord['婚育史']['结婚']['详情'],
-                            ),
+                            controller: tempController,
                             decoration: InputDecoration(labelText: '详情'),
                             onChanged: (value) {
                               MedicalRecord = JsonChange(
@@ -1234,10 +1269,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                               RegExp(r'^[0-9]*$'),
                             ),
                           ],
-                          controller: TextEditingController(
-                            text: MedicalRecord['婚育史']['生育']['生育儿子数']
-                                .toString(),
-                          ),
+                          controller: tempController1,
                           decoration: InputDecoration(labelText: '儿子数'),
                           onChanged: (value) {
                             MedicalRecord = JsonChange(
@@ -1274,10 +1306,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                               RegExp(r'^[0-9]*$'),
                             ),
                           ],
-                          controller: TextEditingController(
-                            text: MedicalRecord['婚育史']['生育']['生育女儿数']
-                                .toString(),
-                          ),
+                          controller: tempController3,
                           decoration: InputDecoration(labelText: '女儿数'),
                           onChanged: (value) {
                             MedicalRecord = JsonChange(
@@ -1362,9 +1391,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                               RegExp(r'^[0-9]*$'),
                             ),
                           ],
-                          controller: TextEditingController(
-                            text: MedicalRecord['婚育史']['生育']['孕'].toString(),
-                          ),
+                          controller: tempController4,
                           decoration: InputDecoration(labelText: '孕'),
                           onChanged: (value) {
                             MedicalRecord = JsonChange(
@@ -1386,9 +1413,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                               RegExp(r'^[0-9]*$'),
                             ),
                           ],
-                          controller: TextEditingController(
-                            text: MedicalRecord['婚育史']['生育']['产'].toString(),
-                          ),
+                          controller: tempController5,
                           decoration: InputDecoration(labelText: '产'),
                           onChanged: (value) {
                             MedicalRecord = JsonChange(
@@ -1476,8 +1501,8 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
         (item) => item['id'] == id,
       );
       return Card(
+        key: Key(id), // 添加key以优化性能
         child: ExpansionTile(
-          key: Key(id), // 添加key以优化性能
           title: ValueListenableBuilder(
             valueListenable: datetime,
             builder: (index, value, child) {
@@ -1587,18 +1612,20 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                 ),
               ),
             ),
-            for (int j = 1; j < fcMenuItems.length - 1; j++)
-              Padding(
+            ...List.generate(fcMenuItems.length - 1, (index) {
+              TextEditingController tempController = TextEditingController(
+                text: record[fcMenuItems[index]],
+              );
+              allController.add(tempController);
+              return Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 8,
                 ),
                 child: TextField(
-                  controller: TextEditingController(
-                    text: record[fcMenuItems[j]],
-                  ),
+                  controller: tempController,
                   decoration: InputDecoration(
-                    labelText: fcMenuItems[j],
+                    labelText: fcMenuItems[index],
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
                   onChanged: (value) {
@@ -1607,11 +1634,12 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                           MedicalRecord['外院辅助检查'].indexWhere(
                             (item) => item['id'] == id,
                           ),
-                        ]][fcMenuItems[j]] =
+                        ]][fcMenuItems[index]] =
                         value;
                   },
                 ),
-              ),
+              );
+            }),
           ],
         ),
       );
@@ -2044,6 +2072,7 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
                       builder: (context) {
                         TextEditingController ryjlController =
                             TextEditingController(text: MedicalRecord['ai输出']);
+                        allController.add(ryjlController);
                         return Scaffold(
                           appBar: AppBar(
                             title: Text('AI生成的入院记录'),
@@ -2123,7 +2152,6 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
     );
   }
 
-  TextEditingController con = TextEditingController(text: '1');
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -2137,9 +2165,61 @@ class _EditPageState extends State<EditPage> with WidgetsBindingObserver {
             children: [
               _buildRecordButtonSection(context),
               buildBasicInfo(),
-              buildZhusu(),
-              buildXianbingshi(),
-              ...jiwangshi,
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(_cardPadding),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: TextField(
+                          controller: zhusu,
+                          decoration: InputDecoration(label: Text('主诉')),
+                          onChanged: (value) => MedicalRecord['主诉'] = value,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Card(
+                clipBehavior: Clip.antiAlias,
+                child: Padding(
+                  padding: const EdgeInsets.all(_cardPadding),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text("现病史"),
+                      ...Zhengzhuang,
+                      ...jiuzhenjilu,
+                      ...List.generate(4, (index) {
+                        return Padding(
+                          padding: EdgeInsets.all(_inputPadding),
+                          child: TextField(
+                            controller: commonSituController[index],
+                            decoration: InputDecoration(
+                              labelText: items[index],
+                            ),
+                            onChanged: (value) {
+                              setState(() {
+                                MedicalRecord['现病史']['一般情况'][items[index]] =
+                                    value;
+                              });
+                            },
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(_cardPadding),
+                  child: Column(children: [...jiwangshi]),
+                ),
+              ),
               ...gerenshi,
               ...hunyushi,
               ...jiazushi,
